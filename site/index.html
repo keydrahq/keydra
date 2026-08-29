@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keydra</title>
+<meta name="description" content="A web-based management console for Redis, Valkey, KeyDB, Dragonfly, Garnet, Aerospike and TiKV. Multi-user and deployable.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@500;700&family=Red+Hat+Text:wght@400;500&family=Red+Hat+Mono:wght@400&display=swap">
+<style>
+/*
+ * The palette is PatternFly 6's, read out of the value each token resolves to rather than
+ * chosen: this page sits in front of a manual and a console that are both built on those
+ * tokens, and a landing page in its own colours would announce itself as a different site.
+ * Two schemes because PatternFly has two; the page follows the reader's rather than deciding.
+ */
+:root {
+  --surface: #fff;          /* background--color--100  */
+  --surface-alt: #f2f2f2;   /* background--color--200  */
+  --text: #151515;          /* text--color--100        */
+  --text-subtle: #4d4d4d;   /* text--color--200        */
+  --border: #c7c7c7;        /* border--color--100      */
+  --brand: #06c;            /* color--brand--200       */
+  --accent: #e00;           /* the mark's own red, which is the same in both schemes */
+  --font-body: 'Red Hat Text', redhattext, helvetica, arial, sans-serif;
+  --font-head: 'Red Hat Display', redhatdisplay, helvetica, arial, sans-serif;
+  --font-mono: 'Red Hat Mono', redhatmono, consolas, 'SFMono-Regular', menlo, monospace;
+  --measure: 46rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #292929;     /* dark--background--color--200 */
+    --surface-alt: #151515; /* dark--background--color--100 */
+    --text: #fff;           /* dark--text--color--100       */
+    --text-subtle: #c7c7c7; /* dark--text--color--200       */
+    --border: #4d4d4d;      /* dark--border--color--100     */
+    --brand: #92c5f9;       /* dark--color--brand--100      */
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3 { font-family: var(--font-head); line-height: 1.2; margin: 0; }
+a { color: var(--brand); }
+code, pre { font-family: var(--font-mono); font-size: 0.875rem; }
+
+.wrap { max-width: 68rem; margin-inline: auto; padding-inline: 1.5rem; }
+
+/* Masthead ---------------------------------------------------------------------------- */
+.masthead {
+  position: sticky; top: 0; z-index: 10;
+  background: var(--surface-alt);
+  border-bottom: 1px solid var(--border);
+}
+.masthead .wrap { display: flex; align-items: center; gap: 1rem; min-height: 4.25rem; }
+.mark { display: flex; align-items: center; color: var(--text); text-decoration: none; }
+.mark svg { height: 1.75rem; width: auto; display: block; }
+.masthead nav { margin-inline-start: auto; display: flex; align-items: center; gap: 1.25rem; }
+.masthead nav a { color: var(--text); text-decoration: none; font-weight: 500; font-size: 0.9375rem; }
+.masthead nav a:hover, .masthead nav a:focus-visible { color: var(--brand); text-decoration: underline; }
+
+.lang {
+  display: flex; border: 1px solid var(--border); border-radius: 999px; overflow: hidden;
+}
+.lang button {
+  font: inherit; font-size: 0.8125rem; font-weight: 500;
+  padding: 0.25rem 0.7rem; border: 0; cursor: pointer;
+  background: transparent; color: var(--text-subtle);
+}
+.lang button[aria-pressed="true"] { background: var(--brand); color: var(--surface); }
+
+/* Hero -------------------------------------------------------------------------------- */
+.hero { padding-block: 5rem 4rem; border-bottom: 1px solid var(--border); }
+.hero h1 { font-size: clamp(2.5rem, 6vw, 4rem); font-weight: 700; letter-spacing: -0.02em; }
+.hero .lede { font-size: clamp(1.125rem, 2.4vw, 1.4rem); color: var(--text-subtle); max-width: var(--measure); margin-block: 1.25rem 0; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-block-start: 2.25rem; }
+.btn {
+  display: inline-block; padding: 0.6rem 1.4rem; border-radius: 4px;
+  font-weight: 500; text-decoration: none; border: 1px solid var(--brand);
+}
+.btn--primary { background: var(--brand); color: var(--surface); }
+.btn--secondary { color: var(--brand); }
+.btn:hover { filter: brightness(1.1); }
+
+/* Sections ---------------------------------------------------------------------------- */
+section { padding-block: 4rem; border-bottom: 1px solid var(--border); }
+section > .wrap > h2 { font-size: 1.75rem; font-weight: 700; }
+section > .wrap > .note { color: var(--text-subtle); max-width: var(--measure); margin-block: 0.75rem 0; }
+
+.stores { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-block-start: 1.75rem; list-style: none; padding: 0; }
+.stores li {
+  border: 1px solid var(--border); border-radius: 999px;
+  padding: 0.35rem 0.9rem; font-size: 0.9375rem; font-weight: 500;
+}
+.stores li[data-engine="own"] { border-color: var(--accent); }
+
+.cards { display: grid; gap: 1.5rem; margin-block-start: 2rem;
+         grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); }
+.card { border: 1px solid var(--border); border-radius: 6px; padding: 1.5rem; background: var(--surface-alt); }
+.card h3 { font-size: 1.0625rem; font-weight: 700; }
+.card p { margin-block: 0.6rem 0; color: var(--text-subtle); font-size: 0.9375rem; }
+
+pre {
+  background: var(--surface-alt); border: 1px solid var(--border); border-radius: 6px;
+  padding: 1.25rem; overflow-x: auto; margin-block-start: 1.75rem; line-height: 1.7;
+}
+pre .c { color: var(--text-subtle); }
+
+footer { padding-block: 3rem; color: var(--text-subtle); font-size: 0.9375rem; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: baseline; }
+footer a { color: var(--text-subtle); }
+footer .spacer { margin-inline-start: auto; }
+
+[data-lang-tr] { display: none; }
+html[lang="tr"] [data-lang-en] { display: none; }
+html[lang="tr"] [data-lang-tr] { display: revert; }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap">
+    <a class="mark" href="./" aria-label="Keydra">
+      <!-- The wordmark, with its ink as currentColor so it is legible in either scheme. The
+           three red nodes are the mark and stay red in both, as they do in the favicon. -->
+      <svg viewBox="0 0 95.6 32" role="img" aria-label="Keydra">
+        <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="7.5" cy="16" r="4"/>
+          <path d="M11.5 16 H17"/>
+          <path d="M17 16 L20.54 12.46 M17 16 L22 16 M17 16 L20.54 19.54"/>
+        </g>
+        <circle cx="7.5" cy="16" r="1.1" fill="currentColor"/>
+        <g fill="#EE0000"><circle cx="23.36" cy="9.64" r="2.2"/><circle cx="26" cy="16" r="2.2"/><circle cx="23.36" cy="22.36" r="2.2"/></g>
+        <g fill="currentColor"><path transform="translate(36,22) scale(0.017143,-0.017143)" d="M67 0V700H192V381L514 700H669L318 364L682 0H514L192 328V0Z"/><path transform="translate(47.3,22) scale(0.017143,-0.017143)" d="M306 -10Q229 -10 167.5 25.5Q106 61 69.5 121.5Q33 182 33 258Q33 332 68.0 392.5Q103 453 162.0 488.5Q221 524 295 524Q367 524 424.0 488.0Q481 452 514.0 390.0Q547 328 547 250V218H153Q165 163 208.5 127.0Q252 91 312 91Q387 91 433 134L510 62Q464 25 415.0 7.5Q366 -10 306 -10ZM152 305H430Q419 357 381.0 391.0Q343 425 292 425Q239 425 201.5 392.0Q164 359 152 305Z"/><path transform="translate(57.14,22) scale(0.017143,-0.017143)" d="M99 -215Q63 -215 42 -210V-107Q60 -111 88 -111Q160 -111 190 -38L205 -3L1 515H132L272 143L427 515H555L311 -52Q274 -141 225.0 -178.0Q176 -215 99 -215Z"/><path transform="translate(66.55,22) scale(0.017143,-0.017143)" d="M294 -7Q221 -7 162.0 28.0Q103 63 68.0 123.5Q33 184 33 258Q33 332 68.0 392.0Q103 452 163.0 487.5Q223 523 297 523Q379 523 444 477V700L563 721V0H446V46Q382 -7 294 -7ZM312 94Q395 94 444 150V366Q421 392 386.0 406.5Q351 421 312 421Q266 421 229.0 400.0Q192 379 170.5 342.0Q149 305 149 259Q149 212 170.5 175.0Q192 138 229.0 116.0Q266 94 312 94Z"/><path transform="translate(77.16,22) scale(0.017143,-0.017143)" d="M56 0V515H175V453Q199 488 234.5 507.5Q270 527 314 527Q349 526 368 517V412Q338 424 304 424Q216 424 175 339V0Z"/><path transform="translate(83.73,22) scale(0.017143,-0.017143)" d="M220 -9Q164 -9 121.5 11.0Q79 31 55.0 66.5Q31 102 31 149Q31 222 87.0 263.5Q143 305 241 305Q311 305 374 280V326Q374 426 257 426Q223 426 185.0 415.5Q147 405 99 383L55 471Q171 525 275 525Q378 525 434.0 476.5Q490 428 490 338V0H374V40Q310 -9 220 -9ZM144 151Q144 118 173.0 97.5Q202 77 249 77Q324 77 374 119V199Q322 225 254 225Q203 225 173.5 205.0Q144 185 144 151Z"/></g>
+      </svg>
+    </a>
+    <nav>
+      <a href="docs/" data-lang-en>Documentation</a><a href="docs/" data-lang-tr>Belgeler</a>
+      <a href="https://github.com/keydrahq/keydra">GitHub</a>
+      <a href="https://quay.io/repository/keydrahq/keydra">Quay</a>
+      <div class="lang" role="group" aria-label="Language">
+        <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+        <button type="button" data-set-lang="tr" aria-pressed="false">TR</button>
+      </div>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="hero">
+    <div class="wrap">
+      <h1>Keydra</h1>
+      <p class="lede" data-lang-en>A management console for key–value servers that runs where your servers do — multi-user, deployable, and reached through a browser rather than installed on one person's laptop.</p>
+      <p class="lede" data-lang-tr>Anahtar–değer sunucuları için, sunucularınızın çalıştığı yerde çalışan bir yönetim konsolu: çok kullanıcılı, dağıtılabilir ve tek bir kişinin dizüstü bilgisayarına kurulmak yerine tarayıcıdan erişilen bir uygulama.</p>
+      <div class="actions">
+        <a class="btn btn--primary" href="docs/" data-lang-en>Read the documentation</a>
+        <a class="btn btn--primary" href="docs/" data-lang-tr>Belgeleri okuyun</a>
+        <a class="btn btn--secondary" href="https://github.com/keydrahq/keydra" data-lang-en>Get the source</a>
+        <a class="btn btn--secondary" href="https://github.com/keydrahq/keydra" data-lang-tr>Kaynak koda gidin</a>
+      </div>
+    </div>
+  </div>
+
+  <section>
+    <div class="wrap">
+      <h2 data-lang-en>What it speaks to</h2>
+      <h2 data-lang-tr>Konuştuğu sunucular</h2>
+      <ul class="stores">
+        <li>Redis</li><li>Valkey</li><li>KeyDB</li><li>Dragonfly</li><li>Garnet</li>
+        <li data-engine="own">Aerospike</li><li data-engine="own">TiKV</li>
+      </ul>
+      <p class="note" data-lang-en>The first five speak RESP, which is the only thing they have in common and the only thing Keydra needs of them. The last two speak nothing of the sort and have an engine each. What a target can do is asked rather than assumed: an Aerospike target arrives with three tabs and a TiKV target with one, where a Redis target has eleven — because that is what those stores are.</p>
+      <p class="note" data-lang-tr>İlk beşi RESP konuşur; ortak yanları da, Keydra'nın onlardan istediği de yalnızca budur. Son ikisi öyle bir dil konuşmaz ve her biri kendi motoruna sahiptir. Bir hedefin ne yapabildiği varsayılmaz, sorulur: Redis hedefi on bir sekmeyle gelirken Aerospike hedefi üç, TiKV hedefi bir sekmeyle gelir — çünkü o sunucular böyledir.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2 data-lang-en>What it does</h2>
+      <h2 data-lang-tr>Yaptıkları</h2>
+      <div class="cards">
+        <div class="card">
+          <h3 data-lang-en>Targets</h3><h3 data-lang-tr>Hedefler</h3>
+          <p data-lang-en>Standalone, cluster and Sentinel servers, with TLS down to a private authority and a client certificate. SSH tunnels are described once and pointed at from anywhere.</p>
+          <p data-lang-tr>Tekil, küme ve Sentinel sunucuları; özel bir sertifika otoritesine ve sunulacak bir istemci sertifikasına kadar TLS desteğiyle. SSH tünelleri bir kez tanımlanır, her yerden gösterilir.</p>
+        </div>
+        <div class="card">
+          <h3 data-lang-en>Data</h3><h3 data-lang-tr>Veri</h3>
+          <p data-lang-en>A key browser that streams over SCAN and never runs KEYS, a namespace tree, an editor for every value type, a decoder chain, and import and export through the server's own commands.</p>
+          <p data-lang-tr>SCAN üzerinden akan ve hiçbir zaman KEYS çalıştırmayan bir anahtar tarayıcı, ad alanı ağacı, her değer türü için bir düzenleyici, çözücü zinciri, ve sunucunun kendi komutlarıyla içe ve dışa aktarma.</p>
+        </div>
+        <div class="card">
+          <h3 data-lang-en>Operating</h3><h3 data-lang-tr>İşletme</h3>
+          <p data-lang-en>A command console that refuses what would hurt the server and says which of two reasons applies, a live command watch, Pub/Sub, a monitoring dashboard, keyspace analysis, and topology.</p>
+          <p data-lang-tr>Sunucuya zarar verecek olanı reddeden ve iki gerekçeden hangisi olduğunu söyleyen bir komut konsolu, canlı komut izleme, Pub/Sub, izleme panosu, anahtar uzayı analizi ve topoloji.</p>
+        </div>
+        <div class="card">
+          <h3 data-lang-en>Automation</h3><h3 data-lang-tr>Otomasyon</h3>
+          <p data-lang-en>Key migration between two targets, scheduled work, alert rules that can be written against a number or against what the metric read last week, and backups to seven kinds of destination.</p>
+          <p data-lang-tr>İki hedef arasında anahtar taşıma, zamanlanmış işler, bir sayıya ya da metriğin geçen hafta okuduğu değere göre yazılabilen uyarı kuralları, ve yedi tür hedefe yedekleme.</p>
+        </div>
+        <div class="card">
+          <h3 data-lang-en>Security</h3><h3 data-lang-tr>Güvenlik</h3>
+          <p data-lang-en>Grants over subjects, scopes, roles and permissions; local accounts, identity providers, sessions that can be ended, a second factor, and targets that can be made to ask for their own name before they are emptied.</p>
+          <p data-lang-tr>Özneler, kapsamlar, roller ve izinler üzerinden yetkilendirme; yerel hesaplar, kimlik sağlayıcılar, sonlandırılabilen oturumlar, ikinci faktör, ve boşaltılmadan önce kendi adının yazılmasını isteyebilen hedefler.</p>
+        </div>
+        <div class="card">
+          <h3 data-lang-en>Running it</h3><h3 data-lang-tr>Çalıştırma</h3>
+          <p data-lang-en>One container image, more than one instance against one database with a database-held lease, instances that can be drained before they are stopped, Prometheus metrics, traces and JSON logs.</p>
+          <p data-lang-tr>Tek bir konteyner imajı, veritabanında tutulan bir kiralamayla aynı veritabanına bağlı birden fazla örnek, durdurulmadan önce boşaltılabilen örnekler, Prometheus metrikleri, izler ve JSON günlükleri.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2 data-lang-en>Run it</h2>
+      <h2 data-lang-tr>Çalıştırın</h2>
+      <p class="note" data-lang-en>The image serves the API and the interface that calls it, so one container is the whole application. Read the comments in the manifest before running it anywhere real — the four settings a deployment has to decide are in there, each with what it costs to leave alone.</p>
+      <p class="note" data-lang-tr>İmaj hem API'yi hem de onu çağıran arayüzü sunar, dolayısıyla tek konteyner uygulamanın tamamıdır. Gerçek bir ortamda çalıştırmadan önce manifest içindeki açıklamaları okuyun — bir kurulumun karar vermesi gereken dört ayar orada, her biri olduğu gibi bırakılmanın bedeliyle birlikte.</p>
+<pre><code><span class="c" data-lang-en># The repository, its three projects and the manifests</span><span class="c" data-lang-tr># Depo, üç projesi ve manifestler</span>
+git clone --recurse-submodules https://github.com/keydrahq/keydra.git
+cd keydra
+podman play kube deploy/keydra-prod.yaml
+<span class="c">#    http://localhost:8181</span></code></pre>
+      <p class="note" data-lang-en>The published image is <code>quay.io/keydrahq/keydra</code>. Every one of them was started before it was pushed.</p>
+      <p class="note" data-lang-tr>Yayınlanan imaj: <code>quay.io/keydrahq/keydra</code>. Her biri gönderilmeden önce çalıştırılmıştır.</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span data-lang-en>Apache License 2.0</span><span data-lang-tr>Apache Lisansı 2.0</span>
+    <a href="https://github.com/keydrahq/keydra-backend">keydra-backend</a>
+    <a href="https://github.com/keydrahq/keydra-frontend">keydra-frontend</a>
+    <a href="https://github.com/keydrahq/keydra-doc">keydra-doc</a>
+    <span class="spacer" data-lang-en>Written in English and Turkish</span>
+    <span class="spacer" data-lang-tr>İngilizce ve Türkçe yazılmıştır</span>
+  </div>
+</footer>
+
+<script>
+/*
+ * Language is a class of the document rather than a second file: this page is short enough
+ * that both languages fit in it, and two files would be two files to forget to change.
+ * The choice is remembered, and the browser's own preference decides the first visit.
+ */
+(function () {
+  var STORE = 'keydra-lang';
+  function apply(lang) {
+    document.documentElement.lang = lang;
+    document.querySelectorAll('[data-set-lang]').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b.dataset.setLang === lang));
+    });
+  }
+  var saved;
+  try { saved = localStorage.getItem(STORE); } catch (e) { /* private window, or site data blocked */ }
+  apply(saved || (String(navigator.language || '').toLowerCase().startsWith('tr') ? 'tr' : 'en'));
+  document.querySelectorAll('[data-set-lang]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      apply(b.dataset.setLang);
+      try { localStorage.setItem(STORE, b.dataset.setLang); } catch (e) { /* nothing to remember with */ }
+    });
+  });
+})();
+</script>
+</body>
+</html>
