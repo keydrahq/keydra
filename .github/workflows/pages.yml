@@ -1,0 +1,119 @@
+name: Pages
+
+# The site: a landing page at the root and the manual under /docs.
+#
+# It is built here rather than in keydra-doc because the manual is generated from the
+# application — the configuration tables, the permission list, the endpoint reference and
+# every interface label a procedure quotes are read out of keydra-backend/ and
+# keydra-frontend/. This repository is the only place all three are checked out together at
+# commits known to work with each other, which is the same reason the image is built here.
+#
+# What is published is therefore a version rather than a snapshot of three moving branches:
+# the submodule pointers say which three.
+
+on:
+  push:
+    branches: [main]
+  # Nothing here is published from a pull request — the site has one address and a preview
+  # would take it. The build runs so a change that breaks it fails before it is merged.
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  # Required by actions/deploy-pages to mint the deployment token.
+  id-token: write
+
+# One deployment at a time, and never cancel one half-way: an interrupted deploy can leave
+# the site serving a half-uploaded artefact.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build the site
+    runs-on: ubuntu-latest
+    steps:
+      # Submodules, and not shallow: the manual reads the application's source, and its own
+      # build stamps pages with the commit they were generated from.
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: keydra-doc/.nvmrc
+          cache: yarn
+          cache-dependency-path: keydra-doc/yarn.lock
+
+      - run: corepack enable
+
+      - name: Install
+        working-directory: keydra-doc
+        run: yarn install --immutable
+
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@v6
+
+      # base_path is /keydra for a project site and empty for a custom domain, and every
+      # generated URL is built from it — so a subpath deployment needs no rewriting. The
+      # `docs` segment under it comes from site.yml's docsPrefix, which is why this passes
+      # no --docs-prefix: unlike the manual's own repository, nothing here is called docs.
+      - name: Build the manual
+        working-directory: keydra-doc
+        run: |
+          yarn build \
+            --base-path "${{ steps.pages.outputs.base_path }}/" \
+            --base-url "${{ steps.pages.outputs.origin }}"
+
+      # The same gate the manual's own pull requests pass, run against what is about to be
+      # published. A base path is the one thing a local build cannot check.
+      - name: Validate the manual
+        working-directory: keydra-doc
+        run: yarn validate
+
+      # Assembly, and the order is the whole of it.
+      #
+      # The manual goes down first because it owns assets/ — every page it renders asks for
+      # its stylesheet and fonts at <base>/assets/, so that directory is not shared. Its own
+      # root index.html is a redirect to the default language, which is exactly what /docs/
+      # should do and no longer what / should do, so it moves down one level rather than
+      # being deleted. The landing page then goes on top and takes the root.
+      - name: Assemble
+        run: |
+          set -euo pipefail
+          mkdir -p _site
+          cp -r keydra-doc/dist/. _site/
+          mv _site/index.html _site/docs/index.html
+          cp -r site/. _site/
+
+          # Fail here rather than publishing a site whose front door is a redirect loop or
+          # whose manual is missing: both are things a green build has shipped before.
+          test -s _site/index.html
+          grep -q '<title>Keydra</title>' _site/index.html
+          test -d _site/docs/en/latest
+          test -d _site/docs/tr/latest
+          test -s _site/docs/index.html
+
+      - name: Upload
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    name: Publish
+    # Never from a pull request: the token that deploys is not one a fork should be able to
+    # reach, and the site has one address.
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
