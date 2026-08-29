@@ -1,0 +1,388 @@
+{
+  "uid": "keydra-browser",
+  "title": "Keydra — the browser",
+  "description": "The half that runs in somebody's tab: what it measured, what it threw, and how long it waited for the other half.",
+  "tags": [
+    "keydra"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": []
+  },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Sessions",
+      "datasource": {
+        "type": "loki",
+        "uid": "LOKI"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "count(count by (session_id) (count_over_time({service_name=\"keydra-web\"} | logfmt [$__range]))) or vector(0)",
+          "legendFormat": "sessions",
+          "datasource": {
+            "type": "loki",
+            "uid": "LOKI"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "description": "Distinct browser sessions in the window. A session lasts as long as a tab does; nothing here recognises anybody tomorrow.",
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "id": 1,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Errors",
+      "datasource": {
+        "type": "loki",
+        "uid": "LOKI"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({service_name=\"keydra-web\", kind=\"exception\"} [$__range])) or vector(0)",
+          "legendFormat": "thrown",
+          "datasource": {
+            "type": "loki",
+            "uid": "LOKI"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "description": "Exceptions the page reported. Zero is the number this should be, and it is written as zero rather than as nothing.",
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "id": 2,
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Page loads",
+      "datasource": {
+        "type": "loki",
+        "uid": "LOKI"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({service_name=\"keydra-web\"} |= \"faro.performance.navigation\" [$__range])) or vector(0)",
+          "legendFormat": "loads",
+          "datasource": {
+            "type": "loki",
+            "uid": "LOKI"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "description": "Whole-page loads. Moving between views inside the application is not one, which is the point of the application being one page.",
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "id": 3,
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Requests the page made",
+      "datasource": {
+        "type": "loki",
+        "uid": "LOKI"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate({service_name=\"keydra-web\"} |= \"faro.tracing.fetch\" [5m])) * 60 or vector(0)",
+          "legendFormat": "per minute",
+          "datasource": {
+            "type": "loki",
+            "uid": "LOKI"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "description": "Every one carries the trace header on to the backend, which is what puts a slow page and a slow query in the same trace.",
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "id": 4,
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "What the browser is doing",
+      "datasource": {
+        "type": "loki",
+        "uid": "LOKI"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (kind) (count_over_time({service_name=\"keydra-web\"} [$__auto]))",
+          "legendFormat": "{{kind}}",
+          "datasource": {
+            "type": "loki",
+            "uid": "LOKI"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "description": "Logs, events, measurements and exceptions, by kind.",
+      "id": 5,
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 12,
+        "h": 10
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Web vitals",
+      "datasource": {
+        "type": "loki",
+        "uid": "LOKI"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "avg_over_time({service_name=\"keydra-web\", kind=\"measurement\"} | logfmt | lcp != \"\" | unwrap lcp [$__auto]) by (service_name)",
+          "legendFormat": "largest contentful paint",
+          "datasource": {
+            "type": "loki",
+            "uid": "LOKI"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "avg_over_time({service_name=\"keydra-web\", kind=\"measurement\"} | logfmt | fcp != \"\" | unwrap fcp [$__auto]) by (service_name)",
+          "legendFormat": "first contentful paint",
+          "datasource": {
+            "type": "loki",
+            "uid": "LOKI"
+          }
+        },
+        {
+          "refId": "C",
+          "expr": "avg_over_time({service_name=\"keydra-web\", kind=\"measurement\"} | logfmt | inp != \"\" | unwrap inp [$__auto]) by (service_name)",
+          "legendFormat": "interaction to next paint",
+          "datasource": {
+            "type": "loki",
+            "uid": "LOKI"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "description": "What the browser measured about itself, in milliseconds.",
+      "id": 6,
+      "gridPos": {
+        "x": 12,
+        "y": 5,
+        "w": 12,
+        "h": 10
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Time the browser waited",
+      "datasource": {
+        "type": "loki",
+        "uid": "LOKI"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "quantile_over_time(0.95, {service_name=\"keydra-web\"} |= \"faro.tracing.fetch\" | logfmt | unwrap event_data_duration_ns [$__auto]) by (service_name) / 1000000",
+          "legendFormat": "95th",
+          "datasource": {
+            "type": "loki",
+            "uid": "LOKI"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "avg_over_time({service_name=\"keydra-web\"} |= \"faro.tracing.fetch\" | logfmt | unwrap event_data_duration_ns [$__auto]) by (service_name) / 1000000",
+          "legendFormat": "mean",
+          "datasource": {
+            "type": "loki",
+            "uid": "LOKI"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "description": "How long a request took as the browser saw it — which includes the network and the queue the server has not got to yet, and is therefore a different number from the one the server reports.",
+      "id": 7,
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "w": 12,
+        "h": 10
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "What it loaded",
+      "datasource": {
+        "type": "loki",
+        "uid": "LOKI"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (event_data_cacheHitStatus) (count_over_time({service_name=\"keydra-web\"} |= \"faro.performance.resource\" | logfmt [$__auto]))",
+          "legendFormat": "{{event_data_cacheHitStatus}}",
+          "datasource": {
+            "type": "loki",
+            "uid": "LOKI"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "description": "Resources the page fetched, by whether the cache answered.",
+      "id": 8,
+      "gridPos": {
+        "x": 12,
+        "y": 15,
+        "w": 12,
+        "h": 10
+      }
+    },
+    {
+      "type": "logs",
+      "title": "Exceptions",
+      "datasource": {
+        "type": "loki",
+        "uid": "LOKI"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service_name=\"keydra-web\", kind=\"exception\"}",
+          "legendFormat": "",
+          "datasource": {
+            "type": "loki",
+            "uid": "LOKI"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "description": "With the stack the browser had. URLs are redacted before they leave the page: a key name is the contents of a target.",
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "prettifyLogMessage": false
+      },
+      "id": 9,
+      "gridPos": {
+        "x": 0,
+        "y": 25,
+        "w": 24,
+        "h": 12
+      }
+    }
+  ],
+  "editable": true
+}

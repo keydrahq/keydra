@@ -1,0 +1,108 @@
+# A three-node Redis cluster for developing and testing Keydra's topology view.
+#
+#   podman play kube deploy/keydra-cluster.yaml           # start the nodes
+#   ./deploy/form-cluster.sh                              # join them into a cluster
+#   podman play kube --down deploy/keydra-cluster.yaml    # stop and remove
+#
+# Separate from keydra-dev.yaml because a cluster is not something to have running
+# all the time: it is three servers to develop one view against, and the ordinary
+# work of the project needs neither of them.
+#
+# All three containers share the pod's network namespace, so each is given its own
+# port explicitly. Cluster nodes also need a bus port, which Redis places at
+# 10000 + the client port unless told otherwise; those are published too, because
+# a node that cannot reach another node's bus port never forms a cluster.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: keydra-cluster
+  labels:
+    app: keydra-cluster
+spec:
+  containers:
+    - name: node-1
+      image: docker.io/library/redis:8-alpine
+      args:
+        - redis-server
+        - --port
+        - "7001"
+        - --cluster-enabled
+        - "yes"
+        - --cluster-config-file
+        - /tmp/nodes-7001.conf
+        - --cluster-node-timeout
+        - "5000"
+        # Announced explicitly: without it a node advertises the address it sees
+        # itself on, which inside a pod is not the address anything else can use.
+        - --cluster-announce-ip
+        - 127.0.0.1
+        - --save
+        - ""
+        - --appendonly
+        - "no"
+      ports:
+        - containerPort: 7001
+          hostPort: 7001
+        - containerPort: 17001
+          hostPort: 17001
+      livenessProbe:
+        exec:
+          command: ["redis-cli", "-p", "7001", "ping"]
+        initialDelaySeconds: 2
+        periodSeconds: 10
+    - name: node-2
+      image: docker.io/library/redis:8-alpine
+      args:
+        - redis-server
+        - --port
+        - "7002"
+        - --cluster-enabled
+        - "yes"
+        - --cluster-config-file
+        - /tmp/nodes-7002.conf
+        - --cluster-node-timeout
+        - "5000"
+        - --cluster-announce-ip
+        - 127.0.0.1
+        - --save
+        - ""
+        - --appendonly
+        - "no"
+      ports:
+        - containerPort: 7002
+          hostPort: 7002
+        - containerPort: 17002
+          hostPort: 17002
+      livenessProbe:
+        exec:
+          command: ["redis-cli", "-p", "7002", "ping"]
+        initialDelaySeconds: 2
+        periodSeconds: 10
+    - name: node-3
+      image: docker.io/library/redis:8-alpine
+      args:
+        - redis-server
+        - --port
+        - "7003"
+        - --cluster-enabled
+        - "yes"
+        - --cluster-config-file
+        - /tmp/nodes-7003.conf
+        - --cluster-node-timeout
+        - "5000"
+        - --cluster-announce-ip
+        - 127.0.0.1
+        - --save
+        - ""
+        - --appendonly
+        - "no"
+      ports:
+        - containerPort: 7003
+          hostPort: 7003
+        - containerPort: 17003
+          hostPort: 17003
+      livenessProbe:
+        exec:
+          command: ["redis-cli", "-p", "7003", "ping"]
+        initialDelaySeconds: 2
+        periodSeconds: 10

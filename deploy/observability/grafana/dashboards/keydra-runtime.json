@@ -1,0 +1,440 @@
+{
+  "uid": "keydra-runtime",
+  "title": "Keydra — runtime",
+  "description": "The process itself. Read this when the question is about Keydra rather than about a target.",
+  "tags": [
+    "keydra"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": []
+  },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Heap in use",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(jvm_memory_used_bytes{area=\"heap\"})",
+          "legendFormat": "used",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "id": 1,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Threads",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "jvm_threads_live_threads",
+          "legendFormat": "live",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "id": 2,
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Processor",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "process_cpu_usage",
+          "legendFormat": "this process",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "id": 3,
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Uptime",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "process_uptime_seconds",
+          "legendFormat": "up",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "id": 4,
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Heap",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(jvm_memory_used_bytes{area=\"heap\"})",
+          "legendFormat": "used",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "sum(jvm_memory_committed_bytes{area=\"heap\"})",
+          "legendFormat": "committed",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        },
+        {
+          "refId": "C",
+          "expr": "sum(jvm_memory_max_bytes{area=\"heap\"})",
+          "legendFormat": "max",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "id": 5,
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 12,
+        "h": 10
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Off heap",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(jvm_memory_used_bytes{area=\"nonheap\"})",
+          "legendFormat": "used",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "id": 6,
+      "gridPos": {
+        "x": 12,
+        "y": 5,
+        "w": 12,
+        "h": 10
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Garbage collection",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (cause) (rate(jvm_gc_pause_seconds_sum[5m]))",
+          "legendFormat": "{{cause}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "description": "Seconds of pause per second. A number approaching one is a process that is mostly collecting garbage.",
+      "id": 7,
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "w": 12,
+        "h": 10
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Threads",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "jvm_threads_live_threads",
+          "legendFormat": "live",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "jvm_threads_daemon_threads",
+          "legendFormat": "daemon",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "id": 8,
+      "gridPos": {
+        "x": 12,
+        "y": 15,
+        "w": 12,
+        "h": 10
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Database connections",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(agroal_active_count)",
+          "legendFormat": "in use",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "sum(agroal_available_count)",
+          "legendFormat": "idle",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        },
+        {
+          "refId": "C",
+          "expr": "sum(agroal_awaiting_count)",
+          "legendFormat": "waiting",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "description": "Waiting is the line that matters: a request waiting for a connection is a request that has already been slow.",
+      "id": 9,
+      "gridPos": {
+        "x": 0,
+        "y": 25,
+        "w": 12,
+        "h": 10
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Processor",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "system_cpu_usage",
+          "legendFormat": "machine",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "process_cpu_usage",
+          "legendFormat": "this process",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "id": 10,
+      "gridPos": {
+        "x": 12,
+        "y": 25,
+        "w": 12,
+        "h": 10
+      }
+    }
+  ],
+  "editable": true
+}

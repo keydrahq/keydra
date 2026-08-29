@@ -1,0 +1,342 @@
+{
+  "uid": "keydra-schedules",
+  "title": "Keydra — scheduled work",
+  "description": "What the clock asked for: which jobs ran, what became of them, and whether anybody had to press anything.",
+  "tags": [
+    "keydra"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": []
+  },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Runs in this window",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(keydra_schedule_runs_total[$__range])) or vector(0)",
+          "legendFormat": "runs",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "description": "Everything the clock and everybody asked for, together.",
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "id": 1,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 8,
+        "h": 5
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Failed",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(keydra_schedule_runs_total{outcome=\"FAILED\"}[$__range])) or vector(0)",
+          "legendFormat": "failed",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "description": "A job that failed is a job whose reason is in the log below.",
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "id": 2,
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 8,
+        "h": 5
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Refused",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(keydra_schedule_runs_total{outcome=\"REFUSED\"}[$__range])) or vector(0)",
+          "legendFormat": "refused",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "description": "Somebody's rights were taken away and the schedule they left behind noticed. Not an error — the check working.",
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "id": 3,
+      "gridPos": {
+        "x": 16,
+        "y": 0,
+        "w": 8,
+        "h": 5
+      }
+    },
+    {
+      "type": "barchart",
+      "title": "Runs by outcome",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (outcome) (increase(keydra_schedule_runs_total[15m]))",
+          "legendFormat": "{{outcome}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "id": 4,
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 12,
+        "h": 10
+      }
+    },
+    {
+      "type": "barchart",
+      "title": "Asked for by the clock, or by a person",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (manual) (increase(keydra_schedule_runs_total[15m]))",
+          "legendFormat": "pressed {{manual}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "description": "A schedule that only ever ran because a person pressed it has not run.",
+      "id": 5,
+      "gridPos": {
+        "x": 12,
+        "y": 5,
+        "w": 12,
+        "h": 10
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Runs over time",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (outcome) (rate(keydra_schedule_runs_total[5m]) * 3600)",
+          "legendFormat": "{{outcome}} / hour",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "id": 6,
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "w": 12,
+        "h": 10
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Chores",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "last_over_time(keydra_chores[1m])",
+          "legendFormat": "{{keydra_instance}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "elsewhere",
+                  "color": "text",
+                  "index": 1
+                },
+                "1": {
+                  "text": "here",
+                  "color": "green",
+                  "index": 0
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "description": "All of this happens on exactly one instance. This is which.",
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "id": 7,
+      "gridPos": {
+        "x": 12,
+        "y": 15,
+        "w": 12,
+        "h": 5
+      }
+    },
+    {
+      "type": "logs",
+      "title": "What the schedules said",
+      "datasource": {
+        "type": "loki",
+        "uid": "LOKI"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service_name=\"keydra\"} |~ \"(?i)scheduled job|schedule\"",
+          "legendFormat": "",
+          "datasource": {
+            "type": "loki",
+            "uid": "LOKI"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "description": "Including the ones that failed, with what they said about it.",
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "prettifyLogMessage": false
+      },
+      "id": 8,
+      "gridPos": {
+        "x": 0,
+        "y": 25,
+        "w": 24,
+        "h": 12
+      }
+    }
+  ],
+  "editable": true
+}

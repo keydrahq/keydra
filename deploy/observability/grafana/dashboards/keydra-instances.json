@@ -1,0 +1,322 @@
+{
+  "uid": "keydra-instances",
+  "title": "Keydra — instances",
+  "description": "More than one Keydra against one database: which of them is doing the work that happens once, and how each of them is bearing up.",
+  "tags": [
+    "keydra"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": []
+  },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Doing the chores",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "last_over_time(keydra_chores[1m])",
+          "legendFormat": "{{keydra_instance}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "elsewhere",
+                  "color": "text",
+                  "index": 1
+                },
+                "1": {
+                  "text": "here",
+                  "color": "green",
+                  "index": 0
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "description": "Exactly one of these should say here. Two would mean the lease is not doing its job; none means nobody has claimed it yet.",
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "id": 1,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 5
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Instances answering",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "count(last_over_time(keydra_chores[1m])) or vector(0)",
+          "legendFormat": "instances",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "description": "How many processes reported in the last minute.",
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "id": 2,
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 5
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Who holds the chores",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "last_over_time(keydra_chores[1m])",
+          "legendFormat": "{{keydra_instance}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "description": "A handover is the step from one line to another. Where they overlap, one instance had not noticed yet — which is what the lease's own expiry is for.",
+      "id": 3,
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 24,
+        "h": 10
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Requests by instance",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (keydra_instance) (rate(http_server_requests_seconds_count[5m]))",
+          "legendFormat": "{{keydra_instance}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "description": "Whether the load balancer is actually balancing.",
+      "id": 4,
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "w": 12,
+        "h": 10
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Heap by instance",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (keydra_instance) (jvm_memory_used_bytes{area=\"heap\"})",
+          "legendFormat": "{{keydra_instance}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "id": 5,
+      "gridPos": {
+        "x": 12,
+        "y": 15,
+        "w": 12,
+        "h": 10
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Targets watched by instance",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "last_over_time(keydra_targets[1m])",
+          "legendFormat": "{{keydra_instance}} · {{state}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "description": "Sampling on a rule's behalf happens only on the instance holding the chores; a dashboard somebody has open is a different reason and can be anywhere.",
+      "id": 6,
+      "gridPos": {
+        "x": 0,
+        "y": 25,
+        "w": 12,
+        "h": 10
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Sampling cost by instance",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (keydra_instance) (rate(keydra_target_sample_seconds_count[5m])) * 60",
+          "legendFormat": "{{keydra_instance}} · readings / minute",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "id": 7,
+      "gridPos": {
+        "x": 12,
+        "y": 25,
+        "w": 12,
+        "h": 10
+      }
+    },
+    {
+      "type": "logs",
+      "title": "Handovers",
+      "datasource": {
+        "type": "loki",
+        "uid": "LOKI"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service_name=\"keydra\"} |~ \"chores\"",
+          "legendFormat": "",
+          "datasource": {
+            "type": "loki",
+            "uid": "LOKI"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "description": "Every line an instance wrote about taking the work on or giving it up.",
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "prettifyLogMessage": false
+      },
+      "id": 8,
+      "gridPos": {
+        "x": 0,
+        "y": 35,
+        "w": 24,
+        "h": 12
+      }
+    }
+  ],
+  "editable": true
+}

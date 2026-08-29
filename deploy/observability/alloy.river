@@ -1,0 +1,105 @@
+// The one door everything knocks on.
+//
+// Two things send telemetry here and they are not alike: Keydra speaks OTLP, and a browser
+// speaks Faro — a different protocol because the sender is a page that may be closed
+// mid-request, so it batches, it retries, and it says what a browser knows (which view, which
+// session, how long a paint took). Alloy is what turns both into traces for Tempo and lines
+// for Loki without either sender having to know where those live.
+//
+// Nothing in here is reachable from outside this machine: the ports are the host's loopback,
+// and the browser reaching them is the browser on the same machine.
+
+// --- What Keydra sends ------------------------------------------------------
+
+otelcol.receiver.otlp "keydra" {
+  grpc {
+    endpoint = "127.0.0.1:4319"
+  }
+  http {
+    endpoint = "127.0.0.1:4320"
+  }
+
+  output {
+    traces = [otelcol.exporter.otlp.tempo.input]
+    logs   = [otelcol.exporter.otlphttp.loki.input]
+  }
+}
+
+// --- What the browser sends -------------------------------------------------
+
+faro.receiver "browser" {
+  server {
+    listen_address           = "127.0.0.1"
+    listen_port              = 12347
+    cors_allowed_origins     = ["http://localhost:9000", "http://localhost:8181"]
+    max_allowed_payload_size = "10MiB"
+  }
+
+  output {
+    // Errors, console lines, page views and measurements all arrive as logs; the spans the
+    // web tracing package produces arrive as traces and end up beside the server's own.
+    logs   = [loki.process.faro.receiver]
+    traces = [otelcol.exporter.otlp.tempo.input]
+  }
+}
+
+// Says who sent it.
+//
+// Without this the browser's lines arrive with no stream labels at all, Loki calls them
+// "unknown_service", and Grafana's Logs Drilldown — which groups by service — files the
+// whole of the frontend under a name that means "nobody said". The traces already say
+// keydra-web because the tracing package puts it in the resource; this is the same fact,
+// said in the way logs say it.
+loki.process "faro" {
+  forward_to = [loki.write.faro.receiver]
+
+  stage.logfmt {
+    mapping = {
+      "kind"  = "",
+      "level" = "",
+    }
+  }
+
+  // Two labels and no more. A label is what Loki indexes and splits streams by, so the
+  // session id and the page URL stay in the line, where they belong.
+  stage.labels {
+    values = {
+      kind  = "",
+      level = "",
+    }
+  }
+
+  stage.static_labels {
+    values = {
+      service_name = "keydra-web",
+    }
+  }
+}
+
+// --- Where it all goes ------------------------------------------------------
+
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "127.0.0.1:4317"
+    tls {
+      insecure = true
+    }
+  }
+}
+
+// Loki's own OTLP endpoint rather than a Loki exporter: a log record that arrives over OTLP
+// keeps the trace it belongs to, which is the entire point of sending it this way.
+otelcol.exporter.otlphttp "loki" {
+  client {
+    endpoint = "http://127.0.0.1:3100/otlp"
+    tls {
+      insecure = true
+    }
+  }
+}
+
+loki.write "faro" {
+  endpoint {
+    url = "http://127.0.0.1:3100/loki/api/v1/push"
+  }
+}

@@ -1,0 +1,267 @@
+# Local development containers for Keydra: the two targets it manages, and the three
+# servers it uses itself — PostgreSQL for what somebody typed, Redis for what Keydra
+# worked out, ClickHouse for what it measured.
+#
+#   podman play kube deploy/keydra-dev.yaml          # start
+#   podman play kube --down deploy/keydra-dev.yaml   # stop and remove
+#
+# Both containers share the pod's network namespace, so Valkey is started on
+# 6380 rather than its default port. Images are fully qualified because rootless
+# Podman otherwise prompts for a registry on short names.
+#
+# Host ports are deliberately NOT the default ones: a development machine
+# usually already has something on 6379 and 5432, and a pod whose hostPort is
+# taken does not start at all. Inside the pod every server keeps its canonical
+# port, so `podman exec` commands read the way the upstream docs do; only the
+# published side is moved out of the way.
+#
+#   host 6479 -> redis 6379      host 6480 -> valkey 6380
+#   host 5442 -> postgres 5432   host 6481 -> keydra's own store 6381
+#   host 6482 -> keydb 6382       host 6483 -> dragonfly 6383
+#   host 6484 -> garnet 6384      host 3100 -> aerospike 3000
+apiVersion: v1
+kind: Pod
+metadata:
+  name: keydra-dev
+  labels:
+    app: keydra-dev
+spec:
+  containers:
+    - name: redis
+      image: docker.io/library/redis:8-alpine
+      args: ["redis-server", "--save", "", "--appendonly", "no"]
+      ports:
+        - containerPort: 6379
+          hostPort: 6479
+      livenessProbe:
+        exec:
+          command: ["redis-cli", "-p", "6379", "ping"]
+        initialDelaySeconds: 2
+        periodSeconds: 10
+    - name: valkey
+      image: docker.io/valkey/valkey:9-alpine
+      args: ["valkey-server", "--port", "6380", "--save", "", "--appendonly", "no"]
+      ports:
+        - containerPort: 6380
+          hostPort: 6480
+      livenessProbe:
+        exec:
+          command: ["valkey-cli", "-p", "6380", "ping"]
+        initialDelaySeconds: 2
+        periodSeconds: 10
+
+    # What Keydra caches, and how one Keydra tells another that something changed.
+    #
+    # Deliberately not the redis above. That one is a *target*: somebody browsing it is meant
+    # to delete keys in it, and a cache sharing a keyspace with an afternoon of experiments is
+    # a cache that disappears mid-afternoon. Keydra's own state gets its own server, on its own
+    # port, with its own name.
+    #
+    # No volume, unlike PostgreSQL: everything in here is derived from what is in the database
+    # and expires within seconds. Losing it costs one slow request per entry.
+    # The third RESP server Keydra supports, and the reason there is a third: KeyDB is a fork
+    # of Redis rather than of Valkey, so it answers `keydb_version` where the others answer
+    # their own, and it is the case that proves flavour detection is reading the server rather
+    # than believing the profile. Multi-threaded by design — the `--server-threads` is what
+    # makes it KeyDB rather than a Redis with another name.
+    - name: keydb
+      image: docker.io/eqalpha/keydb:latest
+      args:
+        ["keydb-server", "--port", "6382", "--server-threads", "2", "--save", "", "--appendonly", "no"]
+      ports:
+        - containerPort: 6382
+          hostPort: 6482
+      livenessProbe:
+        exec:
+          command: ["keydb-cli", "-p", "6382", "ping"]
+        initialDelaySeconds: 2
+        periodSeconds: 10
+    # The fourth, and the one that proves the flavour list is not all guesswork: Dragonfly does
+    # publish `dragonfly_version` in the section the probe reads, which is what the list always
+    # claimed of every fork and what KeyDB turned out not to do. Multi-threaded as well, and it
+    # says so as `thread_count` — a different field from KeyDB's, which is the only reason one
+    # signal does not catch the other.
+    #
+    # Pulled from ghcr rather than Docker Hub: the project publishes there, and the Hub tag the
+    # obvious command reaches for does not exist.
+    - name: dragonfly
+      image: ghcr.io/dragonflydb/dragonfly:latest
+      args: ["dragonfly", "--port", "6383", "--dbfilename", ""]
+      ports:
+        - containerPort: 6383
+          hostPort: 6483
+      livenessProbe:
+        exec:
+          command: ["redis-cli", "-p", "6383", "ping"]
+        initialDelaySeconds: 5
+        periodSeconds: 10
+    # The fifth, and the one that makes the point the flavour list is really about: Garnet is not a
+    # fork of anything. Microsoft wrote it in C#, and the `redis_version:7.4.3` it answers is a
+    # statement about which dialect of the protocol it speaks, not about where its code came from.
+    # It names itself twice — `garnet_version` and `server_name:garnet` — which is more than any of
+    # the actual forks manage.
+    #
+    # No `redis-cli` in the image, so the probe is the protocol written out by hand: a RESP PING on
+    # the socket, which is all `redis-cli ping` amounts to anyway.
+    - name: garnet
+      image: ghcr.io/microsoft/garnet:latest
+      args: ["--port", "6384", "--bind", "0.0.0.0"]
+      ports:
+        - containerPort: 6384
+          hostPort: 6484
+      livenessProbe:
+        exec:
+          command:
+            - /bin/sh
+            - -c
+            - 'exec 3<>/dev/tcp/127.0.0.1/6384 && printf "PING\r\n" >&3 && head -c 7 <&3 | grep -q PONG'
+        initialDelaySeconds: 5
+        periodSeconds: 10
+    # The sixth, and the first that does not speak RESP at all. It is here because the difference
+    # between "the engine compiles" and "the engine works" is a server to point it at — and because
+    # what Keydra can offer for it is decided by what this actually answers rather than by what its
+    # documentation says.
+    #
+    # Community edition, which needs no feature key. Shifted to 3199 on the host: 3000 is
+    # Aerospike's own and is kept inside the pod, but on the host it is Grafana's, and 3100 —
+    # which this asked for first — is Loki's. Both of those are in the observability pod, which is
+    # a pod somebody runs at the same time as this one.
+    - name: aerospike
+      image: docker.io/aerospike/aerospike-server:latest
+      ports:
+        - containerPort: 3000
+          hostPort: 3199
+      livenessProbe:
+        exec:
+          command: ["asinfo", "-v", "build"]
+        initialDelaySeconds: 15
+        periodSeconds: 10
+    # The seventh, and two containers rather than one: TiKV keeps the data and the placement driver
+    # keeps track of which store keeps what, and a client is pointed at the second. That is why a
+    # TiKV connection in Keydra names port 2379 — the placement driver's — and never 20160.
+    #
+    # Neither port is shifted, which is the one place this file breaks its own rule. The addresses
+    # here are not only what the host connects to: the placement driver hands the client the store's
+    # advertised address, and the client then connects to exactly that. Shift the host port and you
+    # get a cluster that answers on 2379 and a store nobody can reach.
+    #
+    # Started without `enable-ttl`, deliberately, because that is the ordinary case and the one the
+    # engine is written for — asking such a cluster for a key's time to live kills it. See phase 33.
+    - name: pd
+      image: docker.io/pingcap/pd:latest
+      args:
+        - --name=pd
+        - --data-dir=/tmp/pd
+        - --client-urls=http://0.0.0.0:2379
+        - --advertise-client-urls=http://127.0.0.1:2379
+        - --peer-urls=http://0.0.0.0:2380
+        - --advertise-peer-urls=http://127.0.0.1:2380
+        - --initial-cluster=pd=http://127.0.0.1:2380
+      ports:
+        - containerPort: 2379
+          hostPort: 2379
+    - name: tikv
+      image: docker.io/pingcap/tikv:latest
+      args:
+        - --pd-endpoints=127.0.0.1:2379
+        - --addr=0.0.0.0:20160
+        - --advertise-addr=127.0.0.1:20160
+        - --data-dir=/tmp/tikv
+      ports:
+        - containerPort: 20160
+          hostPort: 20160
+    - name: store
+      image: docker.io/library/redis:8-alpine
+      args:
+        - redis-server
+        - --port
+        - "6381"
+        - --save
+        - ""
+        - --appendonly
+        - "no"
+        # A cache with no ceiling is a memory leak with better manners. Small on purpose:
+        # what lives here is a few hundred bytes per account, and an entry evicted early is
+        # one database read, not an error.
+        - --maxmemory
+        - 128mb
+        - --maxmemory-policy
+        - allkeys-lru
+      ports:
+        - containerPort: 6381
+          hostPort: 6481
+      livenessProbe:
+        exec:
+          command: ["redis-cli", "-p", "6381", "ping"]
+        initialDelaySeconds: 2
+        periodSeconds: 10
+
+    # Keydra's own database. Hibernate Reactive has no in-process driver, so unlike
+    # the previous H2 setup the backend needs a real database even in dev.
+    # Credentials are fixed and local-only; production reads them from the
+    # environment.
+    #
+    # This one has a volume, unlike the two targets above, and the difference is
+    # deliberate: what Redis and Valkey hold here is test data somebody made up,
+    # while what PostgreSQL holds is configuration somebody typed — connection
+    # profiles, tunnels with their keys, accounts, backup destinations. Losing
+    # that on `--down` meant re-entering an afternoon's work, which is not a
+    # development environment, it is a demo.
+    #
+    # `podman play kube --down` removes the pod and leaves the volume. To start
+    # genuinely empty:
+    #
+    #   podman volume rm keydra-dev-db
+    - name: postgres
+      image: docker.io/library/postgres:17-alpine
+      env:
+        - name: POSTGRES_DB
+          value: keydra
+        - name: POSTGRES_USER
+          value: keydra
+        - name: POSTGRES_PASSWORD
+          value: keydra
+      ports:
+        - containerPort: 5432
+          hostPort: 5442
+      volumeMounts:
+        - name: keydra-dev-db
+          mountPath: /var/lib/postgresql/data
+      livenessProbe:
+        exec:
+          command: ["pg_isready", "-U", "keydra", "-d", "keydra"]
+        initialDelaySeconds: 3
+        periodSeconds: 10
+    # Where readings go when they are meant to outlive the process (phase 16). Off in a
+    # default Keydra and on in dev, because the thing worth developing against is a chart
+    # that still has last week in it after a restart.
+    #
+    # 25.8 rather than the newest: ClickHouse marks certain releases long-term, and a store
+    # somebody's history lives in is not the place to be first.
+    - name: clickhouse
+      image: docker.io/clickhouse/clickhouse-server:25.8-alpine
+      env:
+        # One user, no password, local only — the same bargain as the PostgreSQL above.
+        - name: CLICKHOUSE_SKIP_USER_SETUP
+          value: "1"
+      ports:
+        - containerPort: 8123
+          hostPort: 8223
+      volumeMounts:
+        - name: keydra-dev-clickhouse
+          mountPath: /var/lib/clickhouse
+      livenessProbe:
+        exec:
+          command: ["wget", "-q", "-O", "-", "http://localhost:8123/ping"]
+        initialDelaySeconds: 5
+        periodSeconds: 15
+  volumes:
+    # A named podman volume, created on first start and kept afterwards.
+    - name: keydra-dev-db
+      persistentVolumeClaim:
+        claimName: keydra-dev-db
+    # The readings, for the same reason: a chart that starts empty after every `--down` is a
+    # chart nobody can develop the long windows against.
+    - name: keydra-dev-clickhouse
+      persistentVolumeClaim:
+        claimName: keydra-dev-clickhouse

@@ -1,0 +1,324 @@
+{
+  "uid": "keydra-logs",
+  "title": "Keydra — logs",
+  "description": "What Keydra said, and how much of it. A log record written inside a request carries the trace it belongs to, which is what makes a span's logs findable.",
+  "tags": [
+    "keydra"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": []
+  },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Errors",
+      "datasource": {
+        "type": "loki",
+        "uid": "LOKI"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({service_name=\"keydra\"} | severity_text = \"ERROR\" [$__range])) or vector(0)",
+          "legendFormat": "errors",
+          "datasource": {
+            "type": "loki",
+            "uid": "LOKI"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "id": 1,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 8,
+        "h": 5
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Warnings",
+      "datasource": {
+        "type": "loki",
+        "uid": "LOKI"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({service_name=\"keydra\"} | severity_text = \"WARN\" [$__range])) or vector(0)",
+          "legendFormat": "warnings",
+          "datasource": {
+            "type": "loki",
+            "uid": "LOKI"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "id": 2,
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 8,
+        "h": 5
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Lines",
+      "datasource": {
+        "type": "loki",
+        "uid": "LOKI"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({service_name=\"keydra\"} [$__range])) or vector(0)",
+          "legendFormat": "lines",
+          "datasource": {
+            "type": "loki",
+            "uid": "LOKI"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "id": 3,
+      "gridPos": {
+        "x": 16,
+        "y": 0,
+        "w": 8,
+        "h": 5
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "By level",
+      "datasource": {
+        "type": "loki",
+        "uid": "LOKI"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (severity_text) (count_over_time({service_name=\"keydra\"} [$__auto]))",
+          "legendFormat": "{{severity_text}}",
+          "datasource": {
+            "type": "loki",
+            "uid": "LOKI"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "id": 4,
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 12,
+        "h": 10
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Who is talking",
+      "datasource": {
+        "type": "loki",
+        "uid": "LOKI"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(10, sum by (bridge_name) (count_over_time({service_name=\"keydra\"} [$__auto])))",
+          "legendFormat": "{{bridge_name}}",
+          "datasource": {
+            "type": "loki",
+            "uid": "LOKI"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "description": "By logger. A class that suddenly has a lot to say is usually the first sign of something.",
+      "id": 5,
+      "gridPos": {
+        "x": 12,
+        "y": 5,
+        "w": 12,
+        "h": 10
+      }
+    },
+    {
+      "type": "logs",
+      "title": "Errors",
+      "datasource": {
+        "type": "loki",
+        "uid": "LOKI"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service_name=\"keydra\"} | severity_text = \"ERROR\"",
+          "legendFormat": "",
+          "datasource": {
+            "type": "loki",
+            "uid": "LOKI"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "prettifyLogMessage": false
+      },
+      "id": 6,
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "w": 12,
+        "h": 12
+      }
+    },
+    {
+      "type": "logs",
+      "title": "Warnings",
+      "datasource": {
+        "type": "loki",
+        "uid": "LOKI"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service_name=\"keydra\"} | severity_text = \"WARN\"",
+          "legendFormat": "",
+          "datasource": {
+            "type": "loki",
+            "uid": "LOKI"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "prettifyLogMessage": false
+      },
+      "id": 7,
+      "gridPos": {
+        "x": 12,
+        "y": 15,
+        "w": 12,
+        "h": 12
+      }
+    },
+    {
+      "type": "logs",
+      "title": "Everything",
+      "datasource": {
+        "type": "loki",
+        "uid": "LOKI"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service_name=\"keydra\"}",
+          "legendFormat": "",
+          "datasource": {
+            "type": "loki",
+            "uid": "LOKI"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "description": "The whole stream, for when the question is not yet a filter.",
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "prettifyLogMessage": false
+      },
+      "id": 8,
+      "gridPos": {
+        "x": 0,
+        "y": 27,
+        "w": 24,
+        "h": 12
+      }
+    }
+  ],
+  "editable": true
+}

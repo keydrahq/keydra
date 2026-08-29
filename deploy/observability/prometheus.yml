@@ -1,0 +1,16 @@
+# Scrapes the Keydra running on this machine.
+#
+# The loopback, because the pod shares the host's network namespace — see the manifest
+# for why. A packaged Keydra in a container of its own is reached by its service name
+# instead, and that is the only line that changes.
+global:
+  scrape_interval: 5s
+  scrape_timeout: 4s
+
+scrape_configs:
+  - job_name: keydra
+    metrics_path: /q/metrics
+    static_configs:
+      - targets: ["127.0.0.1:8181"]
+        labels:
+          deployment: dev

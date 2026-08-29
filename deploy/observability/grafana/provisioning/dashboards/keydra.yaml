@@ -1,0 +1,12 @@
+# Loads whatever dashboards are in the mounted directory, so editing the JSON and
+# reloading the page is the whole development loop.
+apiVersion: 1
+providers:
+  - name: keydra
+    folder: ""
+    type: file
+    disableDeletion: false
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/dashboards
+      foldersFromFilesStructure: false

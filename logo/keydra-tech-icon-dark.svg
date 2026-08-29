@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Keydra">
+  <rect x="1" y="1" width="62" height="62" rx="13" fill="#151515"/>
+  <g transform="translate(32,32) scale(1.5) translate(-16.4,-16)">
+  <g fill="none" stroke="#FFFFFF" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="7.5" cy="16.0" r="4.0"/>
+    <path d="M11.5 16.0 H17.0"/>
+    <path d="M17.0 16.0 L20.54 12.46 M17.0 16.0 L22.00 16.00 M17.0 16.0 L20.54 19.54"/>
+  </g>
+  <circle cx="7.5" cy="16.0" r="1.1" fill="#FFFFFF"/>
+  <g fill="#EE0000"><circle cx="23.36" cy="9.64" r="2.2"/><circle cx="26.00" cy="16.00" r="2.2"/><circle cx="23.36" cy="22.36" r="2.2"/></g>
+  </g>
+</svg>

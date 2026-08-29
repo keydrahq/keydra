@@ -1,0 +1,144 @@
+# Somewhere to watch Keydra from.
+#
+# Optional and separate from keydra-dev.yaml, for the reason the identity provider is
+# separate: nothing in Keydra needs this to run, and most days nobody wants two more
+# processes to browse a local Redis. Bring it up to look at what phase 18 exports.
+#
+#   podman play kube deploy/keydra-observability.yaml
+#   podman play kube --down deploy/keydra-observability.yaml
+#
+#   Grafana     http://localhost:3000   (admin / keydra, and anonymous viewing is on)
+#   Prometheus  http://localhost:9090   metrics
+#   Loki        http://localhost:3100   log lines
+#   Tempo       http://localhost:3200   traces
+#   Alloy       http://localhost:12345  what everything sends to: OTLP on 4319, Faro on 12347
+#
+# Grafana's Drilldown needs all three: Metrics reads Prometheus, Logs reads Loki and Traces
+# reads Tempo, and each is empty until something is putting things into it. Keydra puts its
+# traces and its log records there when it is told where the collector is:
+#
+#   KEYDRA_OTLP_ENDPOINT=http://localhost:4319 ./mvnw quarkus:dev
+#
+# and the frontend puts the browser's half there the same way:
+#
+#   VITE_FARO_URL=http://localhost:12347/collect yarn dev
+#
+# The pod shares the host's network, which is the one thing here that is not how a real
+# deployment looks. The reason is specific: a rootless pod cannot reach the host's
+# loopback unless slirp4netns is started with allow_host_loopback, which `podman play
+# kube` gives no way to ask for — and a backend running under `./mvnw quarkus:dev`
+# listens on the loopback and nowhere else. Sharing the namespace is the honest way to
+# watch a process on this machine. In a real deployment the target below is a service
+# name, the ports are the pod's own, and none of this applies.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: keydra-observability
+  labels: { app: keydra-observability }
+spec:
+  hostNetwork: true
+  containers:
+    - name: prometheus
+      image: docker.io/prom/prometheus:v3.14.0
+      args:
+        - --config.file=/etc/prometheus/prometheus.yml
+        - --storage.tsdb.path=/prometheus
+        # Short, because this is a fixture: keeping a fortnight of a development
+        # machine's metrics is a use of somebody's disk nobody asked for.
+        - --storage.tsdb.retention.time=2d
+        - --web.enable-lifecycle
+        # Tempo's metrics generator writes what it derives from the traces here, which is
+        # what makes rate and duration per endpoint answerable at all.
+        - --web.enable-remote-write-receiver
+      # No port mapping: with the host's network there is nothing to map, and the
+      # numbers below are what these two listen on anyway.
+      volumeMounts:
+        - name: observability-config
+          mountPath: /etc/prometheus
+        - name: prometheus-data
+          mountPath: /prometheus
+    - name: loki
+      image: docker.io/grafana/loki:3.6.11
+      args: ["-config.file=/etc/loki/loki.yaml"]
+      volumeMounts:
+        - name: observability-config
+          mountPath: /etc/loki
+        - name: loki-data
+          mountPath: /loki
+    - name: alloy
+      image: docker.io/grafana/alloy:v1.18.1
+      args:
+        - run
+        - --server.http.listen-addr=127.0.0.1:12345
+        - --storage.path=/var/lib/alloy/data
+        - /etc/alloy/alloy.river
+      volumeMounts:
+        - name: observability-config
+          mountPath: /etc/alloy
+        - name: alloy-data
+          mountPath: /var/lib/alloy
+    - name: tempo
+      image: docker.io/grafana/tempo:2.10.1
+      args: ["-config.file=/etc/tempo/tempo.yaml"]
+      volumeMounts:
+        - name: observability-config
+          mountPath: /etc/tempo
+        - name: tempo-data
+          mountPath: /var/tempo
+    - name: grafana
+      image: docker.io/grafana/grafana:13.2.0
+      env:
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          value: keydra
+        # Anonymous viewing, so opening the dashboard is opening a link. A development
+        # fixture on a loopback port, and the reason it is said out loud here rather
+        # than discovered later.
+        - name: GF_AUTH_ANONYMOUS_ENABLED
+          value: "true"
+        - name: GF_AUTH_ANONYMOUS_ORG_ROLE
+          value: Viewer
+        - name: GF_USERS_DEFAULT_THEME
+          value: system
+      volumeMounts:
+        - name: grafana-provisioning
+          mountPath: /etc/grafana/provisioning
+        # Under /etc rather than under /var/lib/grafana, which is where Grafana keeps
+        # its own database: mounting a directory over that one hides everything in it.
+        - name: grafana-dashboards
+          mountPath: /etc/grafana/dashboards
+        - name: grafana-data
+          mountPath: /var/lib/grafana
+  volumes:
+    # One directory holding every configuration file, mounted wherever each container
+    # looks for its own: four containers reading four files out of the same place is
+    # simpler than four host paths that have to stay in step.
+    - name: observability-config
+      hostPath:
+        path: ./deploy/observability
+        type: Directory
+    # Named podman volumes rather than throwaway directories, because podman 3.x knows
+    # only these and host paths — and because a graph that starts empty after every
+    # --down is a graph nobody can look at twice.
+    - name: prometheus-data
+      persistentVolumeClaim:
+        claimName: keydra-prometheus-data
+    - name: loki-data
+      persistentVolumeClaim:
+        claimName: keydra-loki-data
+    - name: tempo-data
+      persistentVolumeClaim:
+        claimName: keydra-tempo-data
+    - name: alloy-data
+      persistentVolumeClaim:
+        claimName: keydra-alloy-data
+    - name: grafana-provisioning
+      hostPath:
+        path: ./deploy/observability/grafana/provisioning
+        type: Directory
+    - name: grafana-dashboards
+      hostPath:
+        path: ./deploy/observability/grafana/dashboards
+        type: Directory
+    - name: grafana-data
+      persistentVolumeClaim:
+        claimName: keydra-grafana-data

@@ -1,0 +1,248 @@
+{
+  "uid": "keydra-backups",
+  "title": "Keydra — backups and migrations",
+  "description": "The two long jobs: copies leaving the machine, and keys moving between targets.",
+  "tags": [
+    "keydra"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": []
+  },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Backups taken",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(keydra_backups_total{outcome=\"done\"}[$__range])) or vector(0)",
+          "legendFormat": "done",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "id": 1,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 8,
+        "h": 5
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Backups failed",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(keydra_backups_total{outcome=\"failed\"}[$__range])) or vector(0)",
+          "legendFormat": "failed",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "description": "A backup that failed is the one failure a backup exists to prevent.",
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "id": 2,
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 8,
+        "h": 5
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Migrations in flight",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "last_over_time(keydra_migrations_running[1m])",
+          "legendFormat": "{{keydra_instance}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "description": "Walks in progress on this instance. A restart marks its own as interrupted.",
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "id": 3,
+      "gridPos": {
+        "x": 16,
+        "y": 0,
+        "w": 8,
+        "h": 5
+      }
+    },
+    {
+      "type": "barchart",
+      "title": "Backups",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (outcome) (increase(keydra_backups_total[1h]))",
+          "legendFormat": "{{outcome}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "id": 4,
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 12,
+        "h": 10
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Migrations over time",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "last_over_time(keydra_migrations_running[1m])",
+          "legendFormat": "{{keydra_instance}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "id": 5,
+      "gridPos": {
+        "x": 12,
+        "y": 5,
+        "w": 12,
+        "h": 10
+      }
+    },
+    {
+      "type": "logs",
+      "title": "What the copying said",
+      "datasource": {
+        "type": "loki",
+        "uid": "LOKI"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service_name=\"keydra\"} |~ \"(?i)backup|migration|destination\"",
+          "legendFormat": "",
+          "datasource": {
+            "type": "loki",
+            "uid": "LOKI"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "prettifyLogMessage": false
+      },
+      "id": 6,
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "w": 24,
+        "h": 12
+      }
+    }
+  ],
+  "editable": true
+}

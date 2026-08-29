@@ -1,0 +1,291 @@
+{
+  "uid": "keydra-alerts",
+  "title": "Keydra — alerts",
+  "description": "The conditions somebody asked to hear about: when they started, when they stopped, and whether the message got out.",
+  "tags": [
+    "keydra"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": []
+  },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Fired",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(keydra_alert_events_total{kind=\"FIRED\"}[$__range])) or vector(0)",
+          "legendFormat": "fired",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "id": 1,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Cleared",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(keydra_alert_events_total{kind=\"CLEARED\"}[$__range])) or vector(0)",
+          "legendFormat": "cleared",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "id": 2,
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Delivered",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(keydra_alert_deliveries_total{outcome=\"SENT\"}[$__range])) or vector(0)",
+          "legendFormat": "sent",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "id": 3,
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Delivery failed",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(keydra_alert_deliveries_total{outcome=\"FAILED\"}[$__range])) or vector(0)",
+          "legendFormat": "failed",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "description": "Somebody who was not told. The alert still happened and is still in the history.",
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "id": 4,
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      }
+    },
+    {
+      "type": "barchart",
+      "title": "Alerts",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (kind) (increase(keydra_alert_events_total[15m]))",
+          "legendFormat": "{{kind}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "description": "Only the transitions: a rule firing all night is one bar, not a wall of them.",
+      "id": 5,
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 12,
+        "h": 10
+      }
+    },
+    {
+      "type": "barchart",
+      "title": "Deliveries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROM"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (outcome) (increase(keydra_alert_deliveries_total[15m]))",
+          "legendFormat": "{{outcome}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PROM"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "description": "NONE is a rule with nowhere to send: it is in the history and on the page, and nobody was messaged.",
+      "id": 6,
+      "gridPos": {
+        "x": 12,
+        "y": 5,
+        "w": 12,
+        "h": 10
+      }
+    },
+    {
+      "type": "logs",
+      "title": "What the rules said",
+      "datasource": {
+        "type": "loki",
+        "uid": "LOKI"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service_name=\"keydra\"} |~ \"(?i)alert|rule\"",
+          "legendFormat": "",
+          "datasource": {
+            "type": "loki",
+            "uid": "LOKI"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "prettifyLogMessage": false
+      },
+      "id": 7,
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "w": 24,
+        "h": 12
+      }
+    }
+  ],
+  "editable": true
+}

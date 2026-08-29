@@ -1,0 +1,51 @@
+# An identity provider to try Keydra's sign-in against, locally.
+#
+# Optional, and separate from keydra-dev.yaml deliberately: nothing in Keydra needs
+# this to run, and most days nobody wants a Java process using half a gigabyte to
+# browse a local Redis. Bring it up when working on phase 9.5 and take it down after.
+#
+#   podman play kube deploy/keydra-idp.yaml
+#   podman play kube --down deploy/keydra-idp.yaml
+#
+# Development mode: no TLS, an in-memory database, everything lost on restart. That
+# is what makes it a fixture rather than a deployment, and it is also why the realm
+# below is imported at start rather than clicked together in the console.
+#
+# deploy/idp-realm/keydra-realm.json holds a realm with one client, two people and two
+# groups — enough to watch a group mapping do something. It carries no comments of its
+# own because Keycloak refuses an unrecognised field, including one that only explains
+# the others.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: keydra-idp
+  labels: { app: keydra-idp }
+spec:
+  containers:
+    - name: keycloak
+      image: quay.io/keycloak/keycloak:26.4
+      args:
+        - start-dev
+        - --import-realm
+        - --http-port=8080
+      env:
+        - name: KC_BOOTSTRAP_ADMIN_USERNAME
+          value: admin
+        - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+          value: admin
+      ports:
+        # Shifted off 8080 like every other port here, so the pod starts on a machine
+        # that already runs something ordinary.
+        - { containerPort: 8080, hostPort: 8090 }
+      volumeMounts:
+        - name: realm
+          mountPath: /opt/keycloak/data/import
+      # No liveness probe. Keycloak in development mode rebuilds itself at every start and
+      # takes well over a minute to answer anything; a probe generous enough not to kill it
+      # during that would not be telling anybody anything they could not see by opening the
+      # console. Wait for http://localhost:8090/realms/keydra to answer instead.
+  volumes:
+    - name: realm
+      hostPath:
+        path: ./deploy/idp-realm
+        type: Directory

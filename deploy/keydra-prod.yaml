@@ -1,0 +1,253 @@
+# Keydra as it would run in production: the single image from Containerfile, plus the
+# PostgreSQL it keeps connection profiles in.
+#
+# The secrets are Podman secrets rather than a Secret resource in this file: Podman 3.x
+# reads secretKeyRef but does not create secrets from a manifest, and a password written
+# into a file in the repository is not a secret however it is labelled.
+#
+#   printf '{"keydra-db-password":"%s"}' "$(printf keydra | base64 -w0)" \
+#     | podman secret create keydra-db-password -
+#   printf '{"keydra-secret-key":"%s"}' "$(openssl rand -base64 32 | base64 -w0)" \
+#     | podman secret create keydra-secret-key -
+#
+# The shape is not a choice, and it is not obvious. `podman play kube` reads a Podman secret as
+# though it were the data of a Kubernetes Secret: a JSON object, whose keys secretKeyRef.key
+# selects between, and whose values are base64 — which is why the value is encoded even when it
+# already looks like base64.
+#
+# Getting either half wrong reads like a broken store rather than a password in the wrong shape:
+# a bare value is refused with "is not valid JSON: invalid character 'k'", and unencoded JSON with
+# "illegal base64 data at input byte 4". One key per secret, named the same as the secret, so each
+# is still its own — losing one does not mean re-issuing the others.
+#   podman build -t localhost/keydra:dev -f Containerfile .
+#   podman play kube deploy/keydra-prod.yaml
+#   podman play kube --down deploy/keydra-prod.yaml
+#
+# KEYDRA_SECRET_KEY encrypts connection passwords and tunnel keys. Losing it means losing
+# them; sharing it means sharing them.
+#
+# The targets Keydra manages are deliberately not here. They are somebody else's
+# servers; this file describes Keydra.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: keydra-prod
+  labels:
+    app: keydra
+spec:
+  containers:
+    - name: postgres
+      image: docker.io/library/postgres:17-alpine
+      # Everything Keydra knows is in here: the profiles and the credentials they hold, the
+      # accounts, the grants, the audit log, the schedules, the rules, the approvals waiting
+      # for somebody. Without this the pod being replaced — which is what an upgrade is —
+      # takes all of it, and the instance comes back offering to create a first
+      # administrator to whoever asks.
+      volumeMounts:
+        - name: keydra-db
+          mountPath: /var/lib/postgresql/data
+      env:
+        - name: POSTGRES_DB
+          value: keydra
+        - name: POSTGRES_USER
+          value: keydra
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              # The name is a Podman secret and the key is a key inside it, so the secret
+              # holds a JSON object rather than a bare value — see the commands at the top.
+              # One key per secret, named the same as the secret, so each is still its own:
+              # losing one does not mean re-issuing the others.
+              name: keydra-db-password
+              key: keydra-db-password
+      ports:
+        - containerPort: 5432
+          hostPort: 55432
+      livenessProbe:
+        exec:
+          command: ["pg_isready", "-U", "keydra"]
+        initialDelaySeconds: 5
+        periodSeconds: 10
+    - name: keydra
+      # A tag somebody builds locally, which is what makes this file runnable as it stands.
+      # For a real deployment name a real one — a version, or better a digest — because `:dev`
+      # is a moving target and a rollback needs something that does not move.
+      image: localhost/keydra:dev
+      env:
+        # Both containers share the pod's network namespace, so PostgreSQL is on
+        # localhost from here.
+        - name: KEYDRA_DB_URL
+          value: postgresql://localhost:5432/keydra
+        - name: KEYDRA_DB_USERNAME
+          value: keydra
+        - name: KEYDRA_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              # Podman treats secretKeyRef.name as the name of a Podman secret and uses
+              # its whole value, so each secret is its own rather than keys within one.
+              name: keydra-db-password
+              key: keydra-db-password
+        - name: KEYDRA_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: keydra-secret-key
+              key: keydra-secret-key
+        # Security is enforced by default, and enforcing it needs no identity provider:
+        # Keydra has accounts of its own — the first administrator is created through
+        # /api/v1/auth/setup on an instance that has none, and after that it is passwords
+        # this application hashes and sessions it issues. Name a provider below to sign
+        # people in against one instead, and the tenant turns itself on because you named
+        # it rather than because a second variable says so.
+        #
+        # Set these to your provider:
+        # - name: KEYDRA_OIDC_URL
+        #   value: https://keycloak.example.com/realms/keydra
+        # - name: KEYDRA_OIDC_CLIENT_ID
+        #   value: keydra
+        # - name: KEYDRA_OIDC_SECRET
+        #   value: <client secret>
+        #
+        # Left on, which is the default and — since the tenant stopped following this
+        # switch — now also an arrangement that starts. Turn it off deliberately for a
+        # demonstration or a machine only you can reach; the UI then says "security off"
+        # on every page, because an open instance that looks secured is how one ends up
+        # exposed.
+        - name: KEYDRA_SECURITY_ENABLED
+          value: "true"
+        # Where a local backup destination writes. On its own the default is a directory in
+        # the container, which is a backup that goes when the machine does — the thing phase
+        # 11 said a backup exists to survive. The mount below makes it outlive the container;
+        # a destination that leaves the host entirely is still the better answer.
+        - name: KEYDRA_BACKUP_DIR
+          value: /var/lib/keydra/backups
+        #
+        # --- The four a real deployment has to decide ---------------------------
+        #
+        # Everything else Keydra reads has a default that is right, and a manifest listing
+        # all of them would be configuration documentation with a worse layout. These four
+        # are the ones where leaving it alone looks exactly like setting it correctly, and
+        # where the instance tells you so on its own page when it can see the contradiction.
+        #
+        # Behind a reverse proxy — which is the normal way to run this — Keydra has to be
+        # told, or every sign-in appears to come from the proxy: the checks that compare a
+        # sign-in with the ones before it then compare everybody with everybody, and the
+        # limit on attempts counts a whole office as one network. Name the proxies too,
+        # because with the switch on and nobody named, anybody can claim any address.
+        # - name: KEYDRA_BEHIND_PROXY
+        #   value: "true"
+        # - name: KEYDRA_TRUSTED_PROXIES
+        #   value: 10.0.0.0/8
+        #
+        # The address a browser reaches this at. A redirect URI is agreed with an identity
+        # provider in advance and has to match to the character, and it is what an
+        # invitation link is built from — so without it those links point at whatever the
+        # request happened to say, which behind a proxy is the proxy's idea of the host.
+        # - name: KEYDRA_PUBLIC_URL
+        #   value: https://keydra.example.com
+        #
+        # Session cookies are marked secure by default, which is right for the https above
+        # and wrong for a demonstration served over plain http — where the browser would
+        # refuse to keep them and nobody would stay signed in.
+        # - name: KEYDRA_COOKIE_SECURE
+        #   value: "false"
+        #
+        # What this instance calls itself on the roster. Left unset it is the hostname plus
+        # something random, which is right for a pod; set it where the name in the platform
+        # is the name somebody would search for.
+        # - name: KEYDRA_INSTANCE_ID
+        #   valueFrom:
+        #     fieldRef:
+        #       fieldPath: metadata.name
+      volumeMounts:
+        - name: keydra-backups
+          mountPath: /var/lib/keydra/backups
+      # A memory ceiling, because the image sizes its heap as a percentage of what it can see.
+      # With no limit that is the whole machine: -XX:MaxRAMPercentage=75 on a 32 GB host asks
+      # for a 24 GB heap, and the first thing anybody notices is the node rather than Keydra.
+      # Two gigabytes is a starting point for a small installation — raise it against what the
+      # metrics endpoint actually reports rather than against a guess.
+      #
+      # Memory and not CPU. Partly because a CPU limit on a JVM buys throttling rather than
+      # safety, and partly because rootless Podman is often given no `cpu` controller to
+      # enforce one with — a manifest naming it does not start, which is a worse failure than
+      # not naming it. Under Kubernetes, add one.
+      resources:
+        requests:
+          memory: 512Mi
+        limits:
+          memory: 2Gi
+      # One port, and what is on it is not all for the same audience.
+      #
+      # /q/metrics and /q/health answer without a session, which is what a scraper and a
+      # scheduler need and is deliberate. They are also a description of the installation:
+      # which instances are running, how many targets, how many commands, how much work is
+      # moving. Phase 39 decided that a map of the installation is worth `instance:read`, and
+      # these two hand a smaller one to anybody who can reach the port.
+      #
+      # So the proxy in front of this must not publish /q. Everything a browser needs is under
+      # / and /api; let the scraper reach the pod directly, or put /q behind whatever the rest
+      # of the estate uses. This is a deployment decision rather than a setting, which is why
+      # it is written here rather than answered in code.
+      ports:
+        - containerPort: 8181
+          hostPort: 8181
+        # /q lives here in a packaged run: health, readiness and metrics, on a port the proxy
+        # does not publish. Reachable inside the network by a scraper and by whatever probes
+        # this pod, and by nobody who only has the address people type.
+        - containerPort: 9001
+          hostPort: 9001
+      # Also how draining works. An instance taken out of service from the instances page
+      # reports itself unready here, and the platform stops sending it new work; what it is
+      # already holding stays with it until the pod is stopped. At ten seconds a drain takes
+      # about that long to be acted on, which is short beside how long somebody watches the
+      # numbers fall before stopping it.
+      #
+      # exec rather than httpGet, and that is not a preference.
+      #
+      # Podman 3.x turns a Kubernetes httpGet probe into a container healthcheck by building a
+      # command out of the fields, and what it builds is `curl "://:8181//q/health/live" || kill 1`
+      # — no scheme, no host, and curl, which this image does not carry. The probe therefore fails
+      # every time, and the `|| kill 1` is Podman's way of restarting: the JVM is sent a signal, it
+      # shuts down tidily, and the pod comes up and does it again. An application that starts
+      # perfectly, thirty seconds at a time, for ever.
+      #
+      # An exec probe is passed through as written, so it means the same thing here as it does in
+      # Kubernetes — where httpGet would have been fine, which is exactly why nobody had noticed.
+      # wget is in the base image; curl is not.
+      readinessProbe:
+        exec:
+          command: ["wget", "-qO-", "http://localhost:9001/q/health/ready"]
+        initialDelaySeconds: 15
+        periodSeconds: 10
+        timeoutSeconds: 5
+      #
+      # The intervals are wide on purpose, and the reason is Podman rather than the JVM.
+      #
+      # Podman turns this probe into a container healthcheck by appending `|| kill 1`, which is
+      # how it restarts a container — so a single failure stops the process. failureThreshold is
+      # not honoured, and neither is initialDelaySeconds in the way it reads: the first check runs
+      # one period after the container starts, whatever the delay says, and a check that runs
+      # before the JVM is listening is therefore fatal rather than early.
+      #
+      # A minute is comfortably longer than a cold start here — twenty-eight seconds on a cold
+      # page cache, thirteen warm — and is an unremarkable liveness cadence for a JVM under
+      # Kubernetes, where none of the above applies. The timeout is five seconds rather than
+      # Podman's default of one, because this endpoint asks the database and one second is a
+      # tight budget for a JVM that is busy.
+      livenessProbe:
+        exec:
+          command: ["wget", "-qO-", "http://localhost:9001/q/health/live"]
+        initialDelaySeconds: 60
+        periodSeconds: 60
+        timeoutSeconds: 5
+  volumes:
+    # Named volumes rather than host paths: Podman creates them on first use and they are not
+    # a directory somebody has to make, own and remember. Under Kubernetes these are the claims
+    # a cluster satisfies with real storage — which is the whole point of naming them here
+    # rather than letting the container's own writable layer pretend to be storage.
+    - name: keydra-db
+      persistentVolumeClaim:
+        claimName: keydra-db
+    - name: keydra-backups
+      persistentVolumeClaim:
+        claimName: keydra-backups

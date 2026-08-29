@@ -1,0 +1,47 @@
+# The three, pointed at the containers in the same pod — which is why they are all
+# localhost: containers in a pod share a network namespace, and this one shares the host's.
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    uid: PROM
+    type: prometheus
+    access: proxy
+    url: http://localhost:9090
+    isDefault: true
+    editable: false
+
+  - name: Loki
+    uid: LOKI
+    type: loki
+    access: proxy
+    url: http://localhost:3100
+    editable: false
+    jsonData:
+      # The trace id in a log line becomes a link to the trace. Keydra writes JSON when it
+      # is told to, and the id is a field in it rather than something to guess at from
+      # prose — which is the whole reason for logging JSON in the first place.
+      derivedFields:
+        - name: traceId
+          matcherRegex: '"traceId"\s*:\s*"(\w+)"'
+          url: '$${__value.raw}'
+          datasourceUid: TEMPO
+
+  - name: Tempo
+    uid: TEMPO
+    type: tempo
+    access: proxy
+    url: http://localhost:3200
+    editable: false
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: LOKI
+        spanStartTimeShift: -2m
+        spanEndTimeShift: 2m
+        # A custom query rather than the built-in "filter by trace id", which appends a
+        # line filter — and the trace id is not in the line. A record that arrives over
+        # OTLP carries it as structured metadata instead, which is both the right place
+        # for it and a different thing to query.
+        customQuery: true
+        query: '{service_name="$${__span.tags["service.name"]}"} | trace_id="$${__span.traceId}"'
+      tracesToMetrics:
+        datasourceUid: PROM

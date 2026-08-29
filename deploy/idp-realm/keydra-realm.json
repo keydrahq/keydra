@@ -1,0 +1,84 @@
+{
+  "realm": "keydra",
+  "enabled": true,
+  "clients": [
+    {
+      "clientId": "keydra",
+      "name": "Keydra",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "keydra-dev-client-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "http://localhost:9000/api/v1/auth/providers/*",
+        "http://localhost:8181/api/v1/auth/providers/*"
+      ],
+      "webOrigins": [
+        "http://localhost:9000",
+        "http://localhost:8181"
+      ],
+      "protocolMappers": [
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "config": {
+            "claim.name": "groups",
+            "full.path": "false",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "groups": [
+    {
+      "name": "platform-team"
+    },
+    {
+      "name": "payments-team"
+    }
+  ],
+  "users": [
+    {
+      "username": "ece",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Ece",
+      "lastName": "Demir",
+      "email": "ece@example.com",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ece-parola",
+          "temporary": false
+        }
+      ],
+      "groups": [
+        "/platform-team"
+      ]
+    },
+    {
+      "username": "kerem",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Kerem",
+      "lastName": "Aydin",
+      "email": "kerem@example.com",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "kerem-parola",
+          "temporary": false
+        }
+      ],
+      "groups": [
+        "/payments-team"
+      ]
+    }
+  ]
+}
