@@ -1,0 +1,11 @@
+# Nothing here is built, but a smoke run and a local pod leave things behind.
+*.log
+.env
+
+# Editors
+.idea/
+.vscode/
+.DS_Store
+
+# What scripts/smoke-image.sh writes while it works.
+/tmp-smoke/

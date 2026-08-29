@@ -1,0 +1,19 @@
+# This repository holds manifests and tools. Almost every report belongs somewhere else.
+blank_issues_enabled: false
+
+contact_links:
+  - name: A security problem
+    url: https://github.com/keydrahq/keydra-backend/security/advisories/new
+    about: Report it privately against the backend. Never in a public issue.
+
+  - name: Something wrong in the application
+    url: https://github.com/keydrahq/keydra-backend/issues
+    about: The API, a permission, a schedule, anything the server decides.
+
+  - name: Something wrong in the interface
+    url: https://github.com/keydrahq/keydra-frontend/issues
+    about: A wrong label, a page that does not render, a control that does nothing.
+
+  - name: Something wrong in the manual
+    url: https://github.com/keydrahq/keydra-doc/issues
+    about: A procedure that does not match the interface, or a page that is missing.

@@ -1,0 +1,50 @@
+name: Deployment, image or manifest
+description: Keydra will not start, or a manifest does not do what it says
+labels: [deployment]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is the right place for the image, `deploy/`, and the scripts. If Keydra starts
+        and then behaves wrongly, the report belongs in keydra-backend.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you ran, and what it did instead of what you expected.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: how
+    attributes:
+      label: How you are running it
+      options:
+        - podman play kube with deploy/keydra-prod.yaml
+        - podman play kube with deploy/keydra-dev.yaml
+        - The published image, by hand
+        - An image I built from Containerfile
+        - Kubernetes or OpenShift
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: settings
+    attributes:
+      label: What the deployment sets
+      description: >
+        **Values, not secrets.** Say `KEYDRA_SECRET_KEY is set` — never what it is set to.
+      placeholder: |
+        KEYDRA_SECURITY_ENABLED unset (so on), KEYDRA_BEHIND_PROXY=true behind nginx,
+        PostgreSQL 17 in the same pod, no shared store.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: What the container said
+      description: Read it before pasting. Startup logs can carry addresses and target names.
+      render: text

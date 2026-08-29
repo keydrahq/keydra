@@ -1,0 +1,12 @@
+[submodule "keydra-backend"]
+	path = keydra-backend
+	url = https://github.com/keydrahq/keydra-backend.git
+	branch = main
+[submodule "keydra-frontend"]
+	path = keydra-frontend
+	url = https://github.com/keydrahq/keydra-frontend.git
+	branch = main
+[submodule "keydra-doc"]
+	path = keydra-doc
+	url = https://github.com/keydrahq/keydra-doc.git
+	branch = main

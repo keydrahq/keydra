@@ -1,0 +1,135 @@
+name: Image
+
+# The check neither project's test suite can stand in for: the image is built and started.
+# What that catches lives between the manifest and the container runtime — a probe that
+# stops a healthy process, a secret in a shape the engine will not read — and every unit
+# test on both sides goes on passing while it happens.
+#
+# It is also where the image is published, and the two are one job on purpose: nothing
+# reaches the registry that was not started first.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    # A tag on this repository is the only thing that means a version, because a version of
+    # Keydra is three commits rather than one and this is where those three are written down.
+    tags: ['v*']
+  # The submodules pin commits, so nothing here changes when they move. A weekly run is
+  # what notices that the three no longer build together.
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: quay.io
+  REPOSITORY: quay.io/keydrahq/keydra
+
+jobs:
+  image:
+    name: Build the image and start it
+    runs-on: ubuntu-latest
+    steps:
+      # The Containerfile copies keydra-backend/ and keydra-frontend/ out of the working
+      # tree, so the submodules are the build context rather than a convenience.
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      # On a schedule, build what the three projects have now rather than what the pointers
+      # say. That is the whole point of the weekly run.
+      - name: Move the submodules to their tips
+        if: github.event_name == 'schedule'
+        run: git submodule update --remote
+
+      # --format docker rather than the OCI default, which is the only format with somewhere
+      # to put a HEALTHCHECK. The Containerfile carries one and Podman drops it on the floor
+      # with a warning; a published image that answers `podman inspect --format '{{.Config.Healthcheck}}'`
+      # is worth the non-default flag, and it is the same flag whether the image is pushed or not
+      # so that what CI starts is what CI would publish.
+      - name: Build
+        run: |
+          podman build --format docker --ulimit nofile=16384:16384 \
+            -t localhost/keydra:ci -f Containerfile .
+
+      # The image built above rather than one of its own: what is started here is what is
+      # pushed below, byte for byte. Left to itself the script builds, and CI would then
+      # publish a second image that nothing had ever run.
+      - name: Start it and wait for ready
+        env:
+          KEYDRA_SMOKE_IMAGE: localhost/keydra:ci
+        run: ./scripts/smoke-image.sh
+
+      # Everything below publishes, and each condition below is a door rather than a filter.
+      #
+      # `github.repository` because a fork's push to its own main must not reach this registry
+      # even if somebody puts credentials in it by mistake. `push` because the weekly run
+      # builds the three tips, which is a question about whether they still work together and
+      # not a version anybody should be able to pull. And a pull request never gets here at
+      # all: secrets are not given to one from a fork, so this would fail rather than leak,
+      # but failing a contributor's pull request on a step that was never theirs to pass is
+      # its own kind of wrong.
+      - name: Sign in to the registry
+        if: >-
+          github.event_name == 'push'
+          && github.repository == 'keydrahq/keydra'
+        env:
+          QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
+          QUAY_TOKEN: ${{ secrets.QUAY_TOKEN }}
+        run: |
+          if [ -z "${QUAY_USERNAME}" ] || [ -z "${QUAY_TOKEN}" ]; then
+            echo "::error::QUAY_USERNAME and QUAY_TOKEN are not set. Create a robot account" \
+                 "under the keydrahq organisation on quay.io and add its name and token as" \
+                 "repository secrets."
+            exit 1
+          fi
+          podman login "${REGISTRY}" --username "${QUAY_USERNAME}" --password-stdin <<< "${QUAY_TOKEN}"
+
+      # What each ref publishes:
+      #
+      #   refs/tags/v0.0.1  ->  :0.0.1 and :latest
+      #   refs/heads/main   ->  :main
+      #
+      # `latest` moves on a tag and not on a push to main, because a version of Keydra is the
+      # three submodule pointers a tag froze. Moving it on every merge would make `latest`
+      # mean "whatever built most recently", which is the one thing a person pulling it by
+      # name is not asking for.
+      - name: Push
+        if: >-
+          github.event_name == 'push'
+          && github.repository == 'keydrahq/keydra'
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            version="${GITHUB_REF#refs/tags/v}"
+            tags=("${version}" latest)
+          else
+            tags=(main)
+          fi
+
+          for tag in "${tags[@]}"; do
+            podman tag localhost/keydra:ci "${REPOSITORY}:${tag}"
+            podman push "${REPOSITORY}:${tag}"
+            echo "pushed ${REPOSITORY}:${tag}" >> "${GITHUB_STEP_SUMMARY}"
+          done
+
+          # The digest, so the tag that was just moved can be pinned by something that
+          # would rather not trust a tag.
+          digest=$(podman inspect --format '{{index .RepoDigests 0}}' "${REPOSITORY}:${tags[0]}")
+          echo "digest: \`${digest}\`" >> "${GITHUB_STEP_SUMMARY}"
+
+          # Which three commits this image is, written where somebody reading the run can
+          # see it without checking out anything.
+          {
+            echo
+            echo '| submodule | commit |'
+            echo '|---|---|'
+            git submodule status | awk '{ gsub(/^[+-]/, "", $1); print "| " $2 " | `" substr($1, 1, 12) "` |" }'
+          } >> "${GITHUB_STEP_SUMMARY}"

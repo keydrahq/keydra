@@ -1,0 +1,35 @@
+# The build context is this whole checkout, submodules included, so what is left out here
+# is the difference between seconds and minutes on every rebuild.
+
+# Git metadata: three full histories, and the image needs none of them.
+**/.git
+**/.gitignore
+
+# Build output, on both sides.
+keydra-backend/target
+keydra-backend/backups
+keydra-frontend/dist
+keydra-frontend/node_modules
+keydra-frontend/coverage
+keydra-frontend/.yarn/cache
+keydra-frontend/.yarn/install-state.gz
+
+# The manual builds and publishes on its own; nothing in the image comes from it.
+keydra-doc
+
+# Everything that belongs to the umbrella rather than to the image.
+deploy
+docs
+logo
+scripts
+.github
+*.md
+LICENSE
+NOTICE
+CLAUDE.md
+
+# Secrets and local noise.
+**/.env
+**/*.log
+.idea
+.vscode

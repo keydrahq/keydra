@@ -1,0 +1,8 @@
+Keydra
+Copyright 2026 The Keydra Authors
+
+Licensed under the Apache License, Version 2.0. See LICENSE.
+
+This repository holds the deployment manifests, the container image definition, the tools and
+the design documents. The three projects it points at are submodules with their own
+repositories, and each carries this same licence and its own NOTICE.
