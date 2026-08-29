@@ -206,17 +206,22 @@ spec:
       #
       # Podman 3.x turns a Kubernetes httpGet probe into a container healthcheck by building a
       # command out of the fields, and what it builds is `curl "://:8181//q/health/live" || kill 1`
-      # — no scheme, no host, and curl, which this image does not carry. The probe therefore fails
-      # every time, and the `|| kill 1` is Podman's way of restarting: the JVM is sent a signal, it
-      # shuts down tidily, and the pod comes up and does it again. An application that starts
-      # perfectly, thirty seconds at a time, for ever.
+      # — no scheme and no host. The probe therefore fails every time, and the `|| kill 1` is
+      # Podman's way of restarting: the JVM is sent a signal, it shuts down tidily, and the pod
+      # comes up and does it again. An application that starts perfectly, thirty seconds at a
+      # time, for ever.
       #
       # An exec probe is passed through as written, so it means the same thing here as it does in
       # Kubernetes — where httpGet would have been fine, which is exactly why nobody had noticed.
-      # wget is in the base image; curl is not.
+      #
+      # The command names curl because the runtime image carries curl and not wget. It said wget
+      # until the image moved to ubi9/openjdk-21-runtime, which carries the other one — and a
+      # probe naming a program that is not there fails exactly the way described above, so the
+      # image and these two lines have to be read together or not at all. Whatever is named
+      # here must exist in the image the pod runs; there is no third place that checks.
       readinessProbe:
         exec:
-          command: ["wget", "-qO-", "http://localhost:9001/q/health/ready"]
+          command: ["curl", "-fsS", "-o", "/dev/null", "http://localhost:9001/q/health/ready"]
         initialDelaySeconds: 15
         periodSeconds: 10
         timeoutSeconds: 5
@@ -236,7 +241,7 @@ spec:
       # tight budget for a JVM that is busy.
       livenessProbe:
         exec:
-          command: ["wget", "-qO-", "http://localhost:9001/q/health/live"]
+          command: ["curl", "-fsS", "-o", "/dev/null", "http://localhost:9001/q/health/live"]
         initialDelaySeconds: 60
         periodSeconds: 60
         timeoutSeconds: 5

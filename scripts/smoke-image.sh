@@ -40,7 +40,29 @@ cleanup() {
 trap cleanup EXIT
 
 say() { printf '\n\033[1m== %s\033[0m\n' "$*"; }
-fail() { printf '\033[31mFAILED: %s\033[0m\n' "$*" >&2; exit 1; }
+# A failure here is usually read on a CI page by somebody who cannot reach the pod, so the
+# message alone is not enough: "the first administrator could not be created" was a whole
+# round trip away from "the readiness probe names a program the image does not carry, so
+# Podman had already killed the JVM". Whatever is known gets printed with the failure.
+fail() {
+  printf '\033[31mFAILED: %s\033[0m\n' "$*" >&2
+  if podman pod exists keydra-prod 2>/dev/null; then
+    printf '\n\033[1m-- containers --\033[0m\n' >&2
+    podman ps -a --filter pod=keydra-prod --format '{{.Names}}\t{{.Status}}\t{{.RestartCount}} restarts' >&2 || true
+    for c in keydra-prod-keydra keydra-prod-postgres; do
+      if podman container exists "$c" 2>/dev/null; then
+        printf '\n\033[1m-- %s (last 60) --\033[0m\n' "$c" >&2
+        podman logs --tail 60 "$c" >&2 2>&1 || true
+        # What Podman made of the manifest's probe, which is the thing that is not in the log
+        # when the probe is what went wrong.
+        printf '\n\033[1m-- %s healthcheck --\033[0m\n' "$c" >&2
+        podman inspect "$c" --format '{{json .Config.Healthcheck}}' >&2 || true
+        podman healthcheck run "$c" >&2 2>&1 || true
+      fi
+    done
+  fi
+  exit 1
+}
 
 say "Secrets"
 # Throwaway, and named so nobody mistakes them for the real thing. A real deployment's key
