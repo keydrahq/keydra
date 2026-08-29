@@ -11,12 +11,32 @@ name: Pages
 # What is published is therefore a version rather than a snapshot of three moving branches:
 # the submodule pointers say which three.
 
+# The manual is generated from the application, so the backend and the frontend gitlinks are
+# inputs to this site as surely as site/ is: a label changed in the frontend changes a page
+# here. What is not an input is everything else in this repository — the Containerfile and
+# the manifests were rebuilding the site for no reason until these lists existed.
+#
+# Written out twice because GitHub Actions does not read YAML anchors.
 on:
   push:
     branches: [main]
+    paths:
+      - 'site/**'
+      - 'keydra-doc'
+      - 'keydra-backend'
+      - 'keydra-frontend'
+      - '.gitmodules'
+      - '.github/workflows/pages.yml'
   # Nothing here is published from a pull request — the site has one address and a preview
   # would take it. The build runs so a change that breaks it fails before it is merged.
   pull_request:
+    paths:
+      - 'site/**'
+      - 'keydra-doc'
+      - 'keydra-backend'
+      - 'keydra-frontend'
+      - '.gitmodules'
+      - '.github/workflows/pages.yml'
   workflow_dispatch:
 
 permissions:
@@ -42,14 +62,26 @@ jobs:
         with:
           submodules: recursive
 
+      # Two setup-node calls, and corepack between them, which is the documented way round
+      # a real ordering problem rather than belt and braces. `cache: yarn` makes the action
+      # run `yarn cache dir` to find what to cache, and the yarn on a fresh runner is 1.22 —
+      # which refuses to run at all for a project whose packageManager field says 4.x. So
+      # corepack has to be enabled first; but enabling it before any setup-node leaves its
+      # shims pointing at the Node that setup-node is about to replace. Hence: install Node,
+      # enable corepack, then ask for the cache.
       - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: keydra-doc/.nvmrc
+
+      - run: corepack enable
+
+      - name: Cache the Yarn store
         uses: actions/setup-node@v7
         with:
           node-version-file: keydra-doc/.nvmrc
           cache: yarn
           cache-dependency-path: keydra-doc/yarn.lock
-
-      - run: corepack enable
 
       - name: Install
         working-directory: keydra-doc

@@ -8,15 +8,51 @@ name: Image
 # It is also where the image is published, and the two are one job on purpose: nothing
 # reaches the registry that was not started first.
 
+# The paths are here because without them every commit rebuilt the image: a comma in the
+# README meant ten minutes of Maven and yarn, a new digest in the registry, and `:main`
+# moved to an image identical to the one before it. What is listed is what can change what
+# the image contains — the submodule gitlinks among them, since the backend and the frontend
+# are the image.
+#
+# Written out twice because GitHub Actions does not read YAML anchors. The two lists have to
+# agree, and the way that is checked is that a change to one and not the other shows up as a
+# build that ran on a pull request and not on the merge, or the other way round.
 on:
   pull_request:
+    paths:
+      - 'Containerfile'
+      - '.containerignore'
+      - 'keydra-backend'
+      - 'keydra-frontend'
+      - '.gitmodules'
+      - 'deploy/**'
+      - 'scripts/smoke-image.sh'
+      - '.github/workflows/image.yml'
   push:
     branches: [main]
-    # A tag on this repository is the only thing that means a version, because a version of
-    # Keydra is three commits rather than one and this is where those three are written down.
-    tags: ['v*']
+    paths:
+      - 'Containerfile'
+      - '.containerignore'
+      - 'keydra-backend'
+      - 'keydra-frontend'
+      - '.gitmodules'
+      - 'deploy/**'
+      - 'scripts/smoke-image.sh'
+      - '.github/workflows/image.yml'
+
+  # A release is what means a version, because a version of Keydra is three commits rather
+  # than one and the tag it is cut from is where those three are written down.
+  #
+  # `release` rather than `push: tags`, and that is not a preference: a path filter and a tag
+  # trigger cannot share one push block. Pushing a tag to a commit that is already on main
+  # carries no changed files, so the filter above would match nothing and the release would
+  # silently not publish — a failure that looks exactly like success.
+  release:
+    types: [published]
+
   # The submodules pin commits, so nothing here changes when they move. A weekly run is
-  # what notices that the three no longer build together.
+  # what notices that the three no longer build together — and, since the base images are
+  # rebuilt from tags Red Hat republishes, what picks up their patches.
   schedule:
     - cron: '0 6 * * 1'
   workflow_dispatch:
@@ -78,7 +114,7 @@ jobs:
       # its own kind of wrong.
       - name: Sign in to the registry
         if: >-
-          github.event_name == 'push'
+          (github.event_name == 'push' || github.event_name == 'release')
           && github.repository == 'keydrahq/keydra'
         env:
           QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
@@ -103,12 +139,14 @@ jobs:
       # name is not asking for.
       - name: Push
         if: >-
-          github.event_name == 'push'
+          (github.event_name == 'push' || github.event_name == 'release')
           && github.repository == 'keydrahq/keydra'
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           set -euo pipefail
-          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            version="${GITHUB_REF#refs/tags/v}"
+          if [[ -n "${RELEASE_TAG:-}" ]]; then
+            version="${RELEASE_TAG#v}"
             tags=("${version}" latest)
           else
             tags=(main)
