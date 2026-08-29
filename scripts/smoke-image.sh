@@ -205,4 +205,11 @@ starts=$(podman logs keydra-prod-keydra 2>&1 | grep -c 'Listening on' || true)
 [[ "$starts" == "1" ]] || fail "it started $starts times, so something is stopping it"
 
 printf '\n\033[32mThe image starts, serves and stays up.\033[0m\n'
-[[ "$KEEP" == true ]] && echo "Left running at $BASE — tear down with: podman play kube --down $MANIFEST"
+
+# `if` rather than `[[ ... ]] && echo`, because the last command decides the script's exit
+# status: without --keep the test is false, the echo never runs, and a run that had just
+# printed the line above left with 1. Nobody watching a terminal reads the exit status of a
+# script that says it worked, which is why this survived until CI read it instead.
+if [[ "$KEEP" == true ]]; then
+  echo "Left running at $BASE — tear down with: podman play kube --down $MANIFEST"
+fi
