@@ -16,15 +16,19 @@
 # Podman; `podman build` and `docker build` both read either name.
 
 # --- Stage 1: the frontend ----------------------------------------------------
-# The one stage that is not a Red Hat base image, and the reason is a version rather than a
-# preference: the frontend pins Node 24 (.nvmrc, and `engines.node >= 24.19.0`), and UBI 9
-# ships Node 22 as its newest stream. Building on 22 would mean either relaxing the pin —
-# so the image is built against a runtime no developer uses — or installing Node 24 into
-# ubi9-minimal from a third-party repository, which trades Red Hat's patch feed for
-# somebody else's while keeping the Red Hat name. Neither is worth it for a stage whose
-# only output is a directory of static files that stage 2 copies out.
+# The one stage that is not a Red Hat base image.
 #
-# Revisit when ubi9/nodejs-24 exists; this becomes a one-line change.
+# ubi10/nodejs-24 does exist — an earlier version of this comment said it did not, and was
+# wrong. What it ships is Node 24.18.0 against the 24.19.0 the frontend pins in .nvmrc and in
+# `engines.node`, and it carries neither yarn nor corepack, so using it means a root step and
+# an `npm install -g corepack` over the network before the build can start.
+#
+# Not worth it here, and the reason is what this stage is: everything it produces is a
+# directory of static files that stage 2 copies out, and the image itself is thrown away. The
+# errata feed that makes a Red Hat base the right answer for stage 3 — the image still
+# running a month from now — buys nothing for a builder nobody runs.
+#
+# Revisit when UBI's stream catches up to the pin; it becomes a one-line change plus corepack.
 FROM docker.io/library/node:24-alpine AS frontend
 
 WORKDIR /build
@@ -38,15 +42,15 @@ COPY keydra-frontend/ ./
 RUN yarn build
 
 # --- Stage 2: the backend ------------------------------------------------------
-# UBI's OpenJDK 21 image, which carries Maven 3.9 already — so this is a Maven image and a
-# JDK image at once, and the version is pinned by the tag. That pin is the same guarantee
+# UBI 10's OpenJDK 21 image, which carries Maven 3.9 already — so this is a Maven image and
+# a JDK image at once, and the version is pinned by the tag. That pin is the same guarantee
 # the project's wrapper gives a developer, without a download at build time; and the
 # download is what failed here, since this base image carries neither curl nor wget for the
 # wrapper to use.
 #
 # root only because the image runs as uid 185 by default and /build would not be writable.
 # Nothing survives this stage but target/, so the builder's user is not a security property.
-FROM registry.access.redhat.com/ubi9/openjdk-21:1.24 AS backend
+FROM registry.access.redhat.com/ubi10/openjdk-21:1.24 AS backend
 
 USER root
 WORKDIR /build
@@ -72,7 +76,13 @@ RUN mvn -B -ntp package -DskipTests
 # policy — it is the only image that is still running a month from now, so whose errata
 # feed and patch cadence it is on is a real answer to a real question. The builder above
 # is thrown away; this one is what somebody has to keep patched.
-FROM registry.access.redhat.com/ubi9/openjdk-21-runtime:1.24
+#
+# UBI 10 rather than 9, and the difference is measurable rather than a preference for the
+# newer number: 332 MB against 396, and neither python3 nor expat is installed — which
+# between them carried sixty-one of the two hundred and seventy package vulnerabilities the
+# registry's scanner found in the UBI 9 build. Everything the Containerfile depends on is
+# the same: uid 185 in group 0, Java 21.0.12.1, curl and no wget.
+FROM registry.access.redhat.com/ubi10/openjdk-21-runtime:1.24
 
 # No user is created here: the image already runs as uid 185, and files are given to group
 # 0 so the container still works when a platform assigns it some arbitrary uid instead —
