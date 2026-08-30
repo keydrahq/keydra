@@ -85,9 +85,33 @@ jobs:
       # with a warning; a published image that answers `podman inspect --format '{{.Config.Healthcheck}}'`
       # is worth the non-default flag, and it is the same flag whether the image is pushed or not
       # so that what CI starts is what CI would publish.
+      # Both stores, for the same reason: the Containerfile resolves dependencies in layers
+      # of their own so a source-only rebuild reuses them, which works on a developer's
+      # machine and never here — a runner arrives with no layers at all, and every run has
+      # fetched the whole of both repositories again. The caches belong to the runner and the
+      # build borrows them; what `-v` mounts into a build is not in the image.
+      - name: Cache the Maven repository
+        uses: actions/cache@v6
+        with:
+          path: ~/.m2/repository
+          key: m2-image-${{ hashFiles('keydra-backend/pom.xml') }}
+          restore-keys: m2-image-
+
+      - name: Cache the Yarn store
+        uses: actions/cache@v6
+        with:
+          path: ~/.yarn/berry/cache
+          key: yarn-image-${{ hashFiles('keydra-frontend/yarn.lock') }}
+          restore-keys: yarn-image-
+
+      # /root for both: the frontend stage is node:24-alpine, which runs as root, and the
+      # backend stage is told to.
       - name: Build
         run: |
+          mkdir -p "$HOME/.m2/repository" "$HOME/.yarn/berry/cache"
           podman build --format docker --ulimit nofile=16384:16384 \
+            -v "$HOME/.m2/repository:/root/.m2/repository:rw" \
+            -v "$HOME/.yarn/berry/cache:/root/.yarn/berry/cache:rw" \
             -t localhost/keydra:ci -f Containerfile .
 
       # The image built above rather than one of its own: what is started here is what is
