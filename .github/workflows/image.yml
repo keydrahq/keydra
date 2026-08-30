@@ -50,9 +50,10 @@ on:
   release:
     types: [published]
 
-  # The submodules pin commits, so nothing here changes when they move. A weekly run is
-  # what notices that the three no longer build together — and, since the base images are
-  # rebuilt from tags Red Hat republishes, what picks up their patches.
+  # The base images are rebuilt from tags Red Hat republishes, so the same three commits
+  # produce a patched image a week later. The weekly run publishes it, which is the whole
+  # point: found and not shipped is the same as not found, and between releases nothing else
+  # moves :main.
   schedule:
     - cron: '0 6 * * 1'
   workflow_dispatch:
@@ -79,12 +80,6 @@ jobs:
         with:
           submodules: recursive
 
-      # On a schedule, build what the three projects have now rather than what the pointers
-      # say. That is the whole point of the weekly run.
-      - name: Move the submodules to their tips
-        if: github.event_name == 'schedule'
-        run: git submodule update --remote
-
       # --format docker rather than the OCI default, which is the only format with somewhere
       # to put a HEALTHCHECK. The Containerfile carries one and Podman drops it on the floor
       # with a warning; a published image that answers `podman inspect --format '{{.Config.Healthcheck}}'`
@@ -105,16 +100,17 @@ jobs:
 
       # Everything below publishes, and each condition below is a door rather than a filter.
       #
-      # `github.repository` because a fork's push to its own main must not reach this registry
-      # even if somebody puts credentials in it by mistake. `push` because the weekly run
-      # builds the three tips, which is a question about whether they still work together and
-      # not a version anybody should be able to pull. And a pull request never gets here at
-      # all: secrets are not given to one from a fork, so this would fail rather than leak,
-      # but failing a contributor's pull request on a step that was never theirs to pass is
-      # its own kind of wrong.
+      # `github.repository` because a fork's push to its own main must not reach this
+      # registry even if somebody puts credentials in it by mistake. `schedule` is included
+      # deliberately: the weekly run builds the same three commits on bases Red Hat has
+      # patched since, and an image that is rebuilt and not pushed leaves everybody pulling
+      # the vulnerable one. And a pull request never gets here at all: secrets are not given
+      # to one from a fork, so this would fail rather than leak, but failing a contributor's
+      # pull request on a step that was never theirs to pass is its own kind of wrong.
       - name: Sign in to the registry
         if: >-
-          (github.event_name == 'push' || github.event_name == 'release')
+          (github.event_name == 'push' || github.event_name == 'release'
+           || github.event_name == 'schedule')
           && github.repository == 'keydrahq/keydra'
         env:
           QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
@@ -139,7 +135,8 @@ jobs:
       # name is not asking for.
       - name: Push
         if: >-
-          (github.event_name == 'push' || github.event_name == 'release')
+          (github.event_name == 'push' || github.event_name == 'release'
+           || github.event_name == 'schedule')
           && github.repository == 'keydrahq/keydra'
         env:
           RELEASE_TAG: ${{ github.event.release.tag_name }}

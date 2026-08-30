@@ -12,6 +12,11 @@ What a target can do is asked rather than assumed: an Aerospike target arrives w
 tabs and a TiKV target with one, where a Redis target has eleven — because that is what those
 stores are.
 
+TiKV is the one engine the published image leaves out. Its client bundles copies of netty,
+jackson, guava and protobuf that nothing can upgrade — forty-nine advisories an installation
+managing no TiKV was carrying for nothing — so it is built with the `tikv` Maven profile
+instead. A build without it refuses a TiKV target while you are still filling in the form.
+
 This repository is the whole of Keydra: the three projects as submodules, and the things that
 belong to none of them on their own — the image, the manifests, the tools and the design
 documents.
