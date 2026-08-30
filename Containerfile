@@ -103,6 +103,15 @@ FROM registry.access.redhat.com/ubi10/openjdk-21-runtime:1.24
 USER root
 WORKDIR /app
 
+# The errata stream moves faster than the base tag does. `1.24` is `1.24-12`, rebuilt on Red
+# Hat's own cadence, while UBI ships fixes in between — measured against this image, five
+# packages are behind: sqlite-libs by two Highs (CVE-2026-11822 and CVE-2026-11824), and
+# libattr, libxml2 and pam-libs by a Medium each. Without this the weekly rebuild republishes
+# the same unpatched packages, which is the one thing the weekly rebuild exists not to do.
+#
+# Ahead of the COPY, so a rebuild that only changes the application reuses the layer.
+RUN microdnf -y update && microdnf -y clean all && rm -rf /var/cache/yum
+
 COPY --from=backend --chown=185:0 /build/target/quarkus-app/lib/ lib/
 COPY --from=backend --chown=185:0 /build/target/quarkus-app/*.jar ./
 COPY --from=backend --chown=185:0 /build/target/quarkus-app/app/ app/
