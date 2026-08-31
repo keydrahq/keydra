@@ -17,7 +17,7 @@ jackson, guava and protobuf that nothing can upgrade — forty-nine advisories a
 managing no TiKV was carrying for nothing — so it is built with the `tikv` Maven profile
 instead. A build without it refuses a TiKV target while you are still filling in the form.
 
-This repository is the whole of Keydra: the three projects as submodules, and the things that
+This repository is the whole of Keydra: the four projects as submodules, and the things that
 belong to none of them on their own — the image, the manifests, the tools and the design
 documents.
 
@@ -26,6 +26,7 @@ documents.
 | [`keydra-backend/`](https://github.com/keydrahq/keydra-backend) | Quarkus, Java 21, non-blocking end to end |
 | [`keydra-frontend/`](https://github.com/keydrahq/keydra-frontend) | React and PatternFly, English and Turkish |
 | [`keydra-doc/`](https://github.com/keydrahq/keydra-doc) | the manual, modular AsciiDoc, both languages |
+| [`keydra-operator/`](https://github.com/keydrahq/keydra-operator) | the Kubernetes operator, which installs the image rather than being in it |
 
 Each is developed and released on its own; this one holds them together.
 
@@ -49,9 +50,15 @@ configuration.
 
 ### What the submodule pointers mean
 
-A submodule pins a **commit**, not a branch. What is checked out here is the set of three
-commits that were known to work together, which is deliberate: this is where "0.0.1 meant
-these three" is written down.
+A submodule pins a **commit**, not a branch. What is checked out here is the set of commits
+that were known to work together, which is deliberate: this is where "0.0.1 meant these" is
+written down.
+
+Three of the four are what the image and the manual are built from. The operator is the odd
+one: it installs the image rather than being part of it, and it releases on a cadence of its
+own — a fix to a reconciler does not make a new Keydra. It is pinned here so that a release
+records which operator was current beside it, which is a fact about the release rather than
+an input to anything built here.
 
 It is therefore usually behind. To see what each project has now:
 
@@ -107,9 +114,9 @@ test suite can stand in for: what lives between the manifest and the container r
 If you would rather not build one, it is published to
 [quay.io/keydrahq/keydra](https://quay.io/repository/keydrahq/keydra). `:0.0.1` and `:latest`
 come from a tag on this repository and `:main` from a merge into it — a tag here is what a
-version of Keydra means, because a version is three commits rather than one and this is the
+version of Keydra means, because a version is several commits rather than one and this is the
 only place those three are written down. Every published image was started before it was
-pushed; the run that pushed it says which three commits it is.
+pushed; the run that pushed it says which commits it is.
 
 ## What is in here
 

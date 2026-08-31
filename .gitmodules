@@ -10,3 +10,7 @@
 	path = keydra-doc
 	url = https://github.com/keydrahq/keydra-doc.git
 	branch = main
+[submodule "keydra-operator"]
+	path = keydra-operator
+	url = https://github.com/keydrahq/keydra-operator.git
+	branch = main

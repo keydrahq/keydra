@@ -40,8 +40,8 @@ on:
       - 'scripts/smoke-image.sh'
       - '.github/workflows/image.yml'
 
-  # A release is what means a version, because a version of Keydra is three commits rather
-  # than one and the tag it is cut from is where those three are written down.
+  # A release is what means a version, because a version of Keydra is a set of commits rather
+  # than one and the tag it is cut from is where that set is written down.
   #
   # `release` rather than `push: tags`, and that is not a preference: a path filter and a tag
   # trigger cannot share one push block. Pushing a tag to a commit that is already on main
@@ -50,7 +50,7 @@ on:
   release:
     types: [published]
 
-  # The base images are rebuilt from tags Red Hat republishes, so the same three commits
+  # The base images are rebuilt from tags Red Hat republishes, so the same commits
   # produce a patched image a week later. The weekly run publishes it, which is the whole
   # point: found and not shipped is the same as not found, and between releases nothing else
   # moves :main.
@@ -126,7 +126,7 @@ jobs:
       #
       # `github.repository` because a fork's push to its own main must not reach this
       # registry even if somebody puts credentials in it by mistake. `schedule` is included
-      # deliberately: the weekly run builds the same three commits on bases Red Hat has
+      # deliberately: the weekly run builds the same commits on bases Red Hat has
       # patched since, and an image that is rebuilt and not pushed leaves everybody pulling
       # the vulnerable one. And a pull request never gets here at all: secrets are not given
       # to one from a fork, so this would fail rather than leak, but failing a contributor's
@@ -154,7 +154,7 @@ jobs:
       #   refs/heads/main   ->  :main
       #
       # `latest` moves on a tag and not on a push to main, because a version of Keydra is the
-      # three submodule pointers a tag froze. Moving it on every merge would make `latest`
+      # submodule pointers a tag froze. Moving it on every merge would make `latest`
       # mean "whatever built most recently", which is the one thing a person pulling it by
       # name is not asking for.
       - name: Push
@@ -184,8 +184,10 @@ jobs:
           digest=$(podman inspect --format '{{index .RepoDigests 0}}' "${REPOSITORY}:${tags[0]}")
           echo "digest: \`${digest}\`" >> "${GITHUB_STEP_SUMMARY}"
 
-          # Which three commits this image is, written where somebody reading the run can
-          # see it without checking out anything.
+          # Which commits this release is, written where somebody reading the run can see it
+          # without checking out anything. Four pointers and two of them are the image: the
+          # manual publishes on its own and the operator installs this rather than being in
+          # it, and both are here because a release records what was current beside it.
           {
             echo
             echo '| submodule | commit |'

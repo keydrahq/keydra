@@ -17,6 +17,11 @@ keydra-frontend/.yarn/install-state.gz
 # The manual builds and publishes on its own; nothing in the image comes from it.
 keydra-doc
 
+# Nor does the operator, which installs this image rather than being part of it. It is
+# pinned here so that a release records which operator was current beside it; that is a
+# fact about the release and not an input to the build.
+keydra-operator
+
 # Everything that belongs to the umbrella rather than to the image.
 deploy
 docs
